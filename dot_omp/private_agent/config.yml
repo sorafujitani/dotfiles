@@ -30,3 +30,4 @@ setupVersion: 1
 defaultThinkingLevel: medium
 modelRoles: 
   default: openai-codex/gpt-5.6-sol
+hideThinkingBlock: false
