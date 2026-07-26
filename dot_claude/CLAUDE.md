@@ -10,7 +10,7 @@
 
 ## コーディング規約（全repo共通）
 - コメントは最小限。書くのは why だけ。仕様・意図は命名とテストで表現する
-- 実装のまとまりごとに、新しい context window の subagent でレビューを起動し、指摘を自律的に改善してから次へ進む
+- 実装のまとまりごとに、新しい context window の subagent でレビューを起動し、指摘を自律的に改善してから次へ進む。レビューは `reviewer` agent（`~/.claude/agents/reviewer.md`、未登録のセッションでは subagent に最上位モデルを明示指定）で行う
 
 ## 成果物のルール
 - 外部に残る文面（PR本文・issue・release note・README）に AI 署名・絵文字・定型フッターを入れない
@@ -26,8 +26,14 @@
 - **構造:** 1トピック1ファイル。ディレクトリは `[[wikilink]]` の index で繋ぐ。本文をindexに埋めない。
 - **原則:** `brain/principles.md` がエンジニアリング原則の index。`brain-plan`・`brain-review` skill はこれを全文読んでから判断する。
 - **メンテ:** 古いノートは削除。`meditate` で監査・剪定、`ruminate` で過去ログ採掘。
+- **道具非依存:** brain に Claude Code や特定モデル名に依存する内容を書かない。そうした実装詳細は skill・agent 定義（`~/.claude/` 配下）に置き、brain には道具に依らない原則と知識だけを残す。
 
 利用できる skill: `reflect` / `meditate` / `ruminate` / `brain` / `brain-plan` / `brain-review`。
 
-## sora-mode（作業スタイル）
-マルチステップの実装・調査タスクは、着手前に `sora-mode` skill を起動する（pstack poteto-mode の移植）。playbook の手順を todolist に verbatim でコピーし、適用した原則を返答で明示する。原則の実体は `brain/principles/`。
+## Atlantis（作業モード）
+マルチステップの実装・調査タスクは、着手前に必ず `atlantis` skill を起動し、該当する playbook を全文読む。
+
+- **対象:** 複数ファイル・複数ステップの実装やリファクタ、原因未特定の調査やバグ、設計判断や比較を含む作業。単発の質問、軽微な1ファイル修正、typo、手順確定済みの単純なコマンド実行は除く。迷ったら起動する。
+- **実行必須:** skill や playbook を読むだけで済ませず、実作業の前に必ず1回以上 `atlantis --output json run` を実行する。mode は目的を満たす最小のもの、permission は既定の `read` を優先し、mutationを明示的に依頼された場合だけ `write` を使う。
+- **手順:** playbook の named step を todolist に verbatim でコピーし、適用した原則を返答で明示する。原則の実体は `brain/principles/`。
+- **OMP:** 対話harnessがOMPのとき、Atlantisに `--profile omp` を指定しない。default profileか非OMP profileを使い、OMP → Atlantis → OMPの再帰委譲を避ける。
