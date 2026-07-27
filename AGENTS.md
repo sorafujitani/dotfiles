@@ -9,14 +9,13 @@
 - commit messageはシンプルさ, 次に伝達性を重視します
 - PR本文、commit message、GitHubコメント、レビューコメントなど、外部に残る文章には `Generated with Codex`、`Co-Authored-By`、AI生成であることを示す署名・フッター・絵文字・定型文を含めない
 
-## Brain（永続メモリ / brainmaxxing）
-`/Users/fujitanisora/brain/` は全セッション共通の永続メモリ（Obsidian vault）。Claude Code と共有している（`~/.codex/brain` と `~/.claude/brain` は実体への symlink）。
+## Brain（永続メモリ）
+`/Users/fujitanisora/brain/` はClaude Code・Codex・Piで共有する永続メモリ。各harnessが`brain/index.md`を自動投入する。
 
-- **最初に読む。** SessionStart hook が `brain/index.md` を自動注入する（`~/.local/share/atlantis/hooks/brain-inject.sh`）。タスクに関係する brain ファイルを着手前に読む。
-- **書く。** ミス・指摘・コードベースの重要な学びがあったら brain に書く。ファイルの追加・削除時は PostToolUse hook が `index.md` を自動再生成する。
-- **構造:** 1トピック1ファイル。ディレクトリは `[[wikilink]]` の index で繋ぐ。本文をindexに埋めない。
-- **原則:** `brain/principles.md` がエンジニアリング原則の index。設計・レビュー・リファクタの判断前に、該当する原則ファイル（`brain/principles/`）を全文読む。
-- **メンテ:** 古いノートは削除。重複は統合してから追加。
+- 着手前に、indexからタスクに関係するノートだけを読む。
+- 設計・レビュー・リファクタでは、`brain/principles.md`から該当する原則を読む。
+- brainへ残すのは、別タスクでも判断を改善する検証済みの知識だけ。重複は統合し、古い情報は削除する。
+- planは一時的な実行状態であり、完了を検証したら再利用可能な学びだけをbrainへ移し、plan本体を削除する。完了planを保存・アーカイブしない。
 
 ## Atlantis（適用範囲）
 - Atlantis skillは、複数ステップ、原因未特定、設計判断、複数ファイルを含む非trivialな作業でだけ使う。trivialな質問、typo、文言修正、確定済みの単一コマンドでは読まない。

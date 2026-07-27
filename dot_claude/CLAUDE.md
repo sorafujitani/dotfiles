@@ -34,6 +34,5 @@
 マルチステップの実装・調査タスクは、着手前に必ず `atlantis` skill を起動し、該当する playbook を全文読む。
 
 - **対象:** 複数ファイル・複数ステップの実装やリファクタ、原因未特定の調査やバグ、設計判断や比較を含む作業。単発の質問、軽微な1ファイル修正、typo、手順確定済みの単純なコマンド実行は除く。迷ったら起動する。
-- **実行必須:** skill や playbook を読むだけで済ませず、実作業の前に必ず1回以上 `atlantis --output json run` を実行する。mode は目的を満たす最小のもの、permission は既定の `read` を優先し、mutationを明示的に依頼された場合だけ `write` を使う。
+- **Model routing:** 休止中。`atlantis run`、`atlantis resume`、`atlantis eval`は使わない。明示的に委譲を求められた場合は、現在のharnessの機能を直接使う。
 - **手順:** playbook の named step を todolist に verbatim でコピーし、適用した原則を返答で明示する。原則の実体は `brain/principles/`。
-- **OMP:** 対話harnessがOMPのとき、Atlantisに `--profile omp` を指定しない。default profileか非OMP profileを使い、OMP → Atlantis → OMPの再帰委譲を避ける。
