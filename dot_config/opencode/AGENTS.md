@@ -18,4 +18,3 @@
 
 ## Atlantis（適用範囲）
 - Atlantis skillは、複数ステップ、原因未特定、設計判断、複数ファイルを含む非trivialな作業でだけ使う。trivialな質問、typo、文言修正、確定済みの単一コマンドでは読まない。
-- model routingは休止中。`atlantis run`、`atlantis resume`、`atlantis eval`は使わない。明示的に委譲を求められた場合は、OpenCodeの機能を直接使う。

@@ -34,5 +34,4 @@
 マルチステップの実装・調査タスクは、着手前に必ず `atlantis` skill を起動し、該当する playbook を全文読む。
 
 - **対象:** 複数ファイル・複数ステップの実装やリファクタ、原因未特定の調査やバグ、設計判断や比較を含む作業。単発の質問、軽微な1ファイル修正、typo、手順確定済みの単純なコマンド実行は除く。迷ったら起動する。
-- **Model routing:** 休止中。`atlantis run`、`atlantis resume`、`atlantis eval`は使わない。明示的に委譲を求められた場合は、現在のharnessの機能を直接使う。
 - **手順:** playbook の named step を todolist に verbatim でコピーし、適用した原則を返答で明示する。原則の実体は `brain/principles/`。
