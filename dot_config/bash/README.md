@@ -40,7 +40,7 @@ bash "$config_dir/setup.sh"
 ## 2. Bashで実行する
 
 ```bash
-bash ~/setup-remote-bash.sh && source ~/.bashrc
+bash ~/setup-remote-bash.sh && exec bash -l
 ```
 
 設定は `${XDG_CONFIG_HOME:-$HOME/.config}/bash/` に配置され、既存の `.bashrc` に読込み行が追加されます。次回のBash起動からは自動で有効になります。
