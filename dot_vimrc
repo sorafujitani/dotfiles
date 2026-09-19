@@ -1,3 +1,6 @@
+## root user link
+## printf 'execute "source " . fnameescape("%s/.vimrc")\n' "$HOME" | sudo tee -a /root/.vimrc > /dev/null
+
 " Portable Vim configuration: copy this file to ~/.vimrc (Vim 8+).
 set nocompatible
 let mapleader = ' '
