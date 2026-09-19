@@ -62,6 +62,7 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 | `batcat` / `less` / `tree` | 色付きのファイル表示・長い出力の閲覧・ディレクトリ構造の表示 |
 | `jq` | JSON の整形・値の抽出 |
 | `tmux` | SSH 切断後も端末セッションを維持 |
+| `herdr` | ワークスペース・タブ・ペインで端末やエージェントを管理 |
 | `htop` / `lsof` | CPU・メモリ・プロセスの監視、開いているファイルやポートの確認 |
 | `rsync` / `unzip` | ファイルの同期・転送、ZIP の展開 |
 | `strace` | プロセスが行うシステムコールの調査 |
@@ -77,6 +78,9 @@ Ubuntu / Debian では `fd-find` のコマンド名は `fdfind`、`bat` は `bat
 `dig` は `dnsutils`、`ss`・`ip` は `iproute2`、`ps`・`pgrep`・`free`・`vmstat` は `procps`、`pstree`・`fuser` は `psmisc` に含まれます。
 
 パッケージ情報: https://packages.ubuntu.com/noble/fd-find / https://packages.ubuntu.com/noble/bat
+
+herdr は公式インストーラーで `~/.local/bin` に導入します。導入済みなら再インストールせず、起動は `herdr`、更新は `herdr update` です。
+公式: https://herdr.dev/
 
 ## 3. 使う
 

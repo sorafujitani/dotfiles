@@ -3,6 +3,11 @@
 [[ ${_DOTFILES_BASH_LOADED-} == "$$" ]] && return 0
 _DOTFILES_BASH_LOADED=$$
 
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 HISTSIZE=20000
 HISTFILESIZE=100000
 HISTCONTROL=ignoreboth

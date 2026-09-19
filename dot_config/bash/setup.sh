@@ -38,6 +38,22 @@ for tool in rg fdfind; do
   command -v "$tool" >/dev/null || { printf 'Missing command after installation: %s\n' "$tool" >&2; exit 1; }
 done
 
+# Install Herdr for the current user with the official checksum-verifying installer.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+if ! command -v herdr >/dev/null 2>&1; then
+  (
+    herdr_tmp=$(mktemp -d)
+    trap 'rm -rf -- "$herdr_tmp"' EXIT
+    curl --fail --location --retry 2 --connect-timeout 15 --max-time 120 \
+      https://herdr.dev/install.sh --output "$herdr_tmp/install.sh"
+    HERDR_INSTALL_DIR="$HOME/.local/bin" sh "$herdr_tmp/install.sh"
+  )
+fi
+herdr --version
+
 if [[ ! -r $data_dir/blesh/ble.sh ]]; then
   for dependency in curl tar xz; do
     command -v "$dependency" >/dev/null || { printf 'Missing command: %s\n' "$dependency" >&2; exit 1; }
