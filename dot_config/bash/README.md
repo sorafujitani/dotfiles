@@ -10,20 +10,13 @@ Ubuntu / DebianのBash 4以上、rootまたはsudo権限が必要です。
 #!/usr/bin/env bash
 set -e
 
-packages=(
-  # Shell integration and downloads
-  bash-completion fzf curl ca-certificates xz-utils
-  # Editing, search and file inspection
-  git vim ripgrep fd-find bat tree less jq
-  # Remote sessions, process inspection and file transfer
-  tmux htop lsof rsync unzip
-)
+# Bootstrap downloads; setup.sh installs the remaining tools.
 if (( EUID == 0 )); then
   apt-get update
-  apt-get install -y "${packages[@]}"
+  apt-get install -y curl ca-certificates
 else
   sudo apt-get update
-  sudo apt-get install -y "${packages[@]}"
+  sudo apt-get install -y curl ca-certificates
 fi
 
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
@@ -52,7 +45,13 @@ bash ~/setup-remote-bash.sh && source ~/.bashrc
 
 設定は `${XDG_CONFIG_HOME:-$HOME/.config}/bash/` に配置され、既存の `.bashrc` に読込み行が追加されます。次回のBash起動からは自動で有効になります。
 
-上の導入スクリプトは、次のツールもインストールします。`setup.sh` 単体では apt パッケージのインストールは行いません。
+`setup.sh` が次のツールをインストールします。導入済みの環境でも、最新版に更新して再実行すれば追加されます。
+
+```bash
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config/bash/setup.sh -o "$config_dir/setup.sh" &&
+  bash "$config_dir/setup.sh"
+```
 
 | ツール | 用途 |
 | --- | --- |

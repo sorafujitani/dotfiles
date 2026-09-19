@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run on Linux after downloading this directory or applying it with chezmoi.
-# Install Ubuntu/Debian packages with the bootstrap script in README.md first.
+# Installs Ubuntu/Debian packages and configures the current user's Bash.
 set -euo pipefail
 
 if [[ $(uname -s) != Linux ]]; then
@@ -15,6 +15,24 @@ fi
 config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/bash
 data_dir=${XDG_DATA_HOME:-$HOME/.local/share}
 [[ -r $config_dir/interactive.bash ]] || { printf '%s\n' "Missing $config_dir/interactive.bash" >&2; exit 1; }
+
+command -v apt-get >/dev/null || { printf '%s\n' 'This setup requires Ubuntu/Debian (apt-get).' >&2; exit 1; }
+packages=(
+  bash-completion fzf curl ca-certificates xz-utils
+  git vim ripgrep fd-find bat tree less jq
+  tmux htop lsof rsync unzip
+)
+apt_command=(apt-get)
+if (( EUID != 0 )); then
+  command -v sudo >/dev/null || { printf '%s\n' 'Install sudo or run as root.' >&2; exit 1; }
+  apt_command=(sudo apt-get)
+fi
+"${apt_command[@]}" update
+"${apt_command[@]}" install -y "${packages[@]}"
+
+for tool in rg fdfind; do
+  command -v "$tool" >/dev/null || { printf 'Missing command after installation: %s\n' "$tool" >&2; exit 1; }
+done
 
 if [[ ! -r $data_dir/blesh/ble.sh ]]; then
   for dependency in curl tar xz; do
@@ -60,9 +78,3 @@ append_loader "$profile_file" 'dotfiles interactive bash login' \
 fi'
 
 printf '%s\n' 'Installed. Run: exec bash -l'
-if ! command -v fzf >/dev/null 2>&1; then
-  printf '%s\n' 'Optional: install fzf for the Ctrl-R history picker.'
-fi
-if [[ ! -r /usr/share/bash-completion/bash_completion && ! -r /etc/bash_completion ]]; then
-  printf '%s\n' 'Install bash-completion for command-specific option completion.'
-fi
