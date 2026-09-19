@@ -42,6 +42,9 @@ if [[ ! ${BLE_VERSION-} && -r ${XDG_DATA_HOME:-$HOME/.local/share}/blesh/ble.sh 
   source "${XDG_DATA_HOME:-$HOME/.local/share}/blesh/ble.sh" --attach=none
 fi
 if [[ ${BLE_VERSION-} ]]; then
+  bleopt highlight_syntax=
+  bleopt highlight_filename=
+  bleopt highlight_variable=
   bleopt history_share=1
   bleopt complete_auto_history=1
   bleopt complete_auto_complete_opts=syntax-disabled
