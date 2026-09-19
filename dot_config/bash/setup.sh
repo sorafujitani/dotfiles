@@ -21,6 +21,10 @@ packages=(
   bash-completion fzf curl ca-certificates xz-utils
   git vim ripgrep fd-find bat tree less jq
   tmux htop lsof rsync unzip
+  # Process, network and disk diagnostics
+  strace tcpdump dnsutils iproute2 procps psmisc ncdu
+  # File inspection, archives and shell script checks
+  file zip shellcheck
 )
 apt_command=(apt-get)
 if (( EUID != 0 )); then

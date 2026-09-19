@@ -55,6 +55,8 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 
 | ツール | 用途 |
 | --- | --- |
+| `bash-completion` / `fzf` | Bash の補完・候補や履歴の絞り込み |
+| `curl` / `xz` | HTTP 通信・ダウンロード、XZ ファイルの圧縮・展開 |
 | `git` / `vim` | ソース管理・ファイル編集 |
 | `rg` / `fdfind` | ファイルをまたぐ文字列検索・ファイル名検索 |
 | `batcat` / `less` / `tree` | 色付きのファイル表示・長い出力の閲覧・ディレクトリ構造の表示 |
@@ -62,8 +64,17 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 | `tmux` | SSH 切断後も端末セッションを維持 |
 | `htop` / `lsof` | CPU・メモリ・プロセスの監視、開いているファイルやポートの確認 |
 | `rsync` / `unzip` | ファイルの同期・転送、ZIP の展開 |
+| `strace` | プロセスが行うシステムコールの調査 |
+| `ps` / `pgrep` / `pstree` / `fuser` | プロセスの一覧・検索・親子関係、ファイルの使用者を確認 |
+| `free` / `vmstat` | メモリ・CPU・I/O の状態を確認 |
+| `tcpdump` / `dig` / `ss` / `ip` | 通信・DNS・接続状態の調査 |
+| `ncdu` | ディスク使用量の調査 |
+| `file` / `zip` | ファイル形式の確認・ZIP の作成 |
+| `shellcheck` | シェルスクリプトの問題を検出 |
 
 Ubuntu / Debian では `fd-find` のコマンド名は `fdfind`、`bat` は `batcat` です。`ca-certificates` は HTTPS 通信、`xz-utils` は ble.sh の配布ファイルの展開に使います。
+
+`dig` は `dnsutils`、`ss`・`ip` は `iproute2`、`ps`・`pgrep`・`free`・`vmstat` は `procps`、`pstree`・`fuser` は `psmisc` に含まれます。
 
 パッケージ情報: https://packages.ubuntu.com/noble/fd-find / https://packages.ubuntu.com/noble/bat
 
