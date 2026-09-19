@@ -1,5 +1,5 @@
-## root user link
-## printf 'execute "source " . fnameescape("%s/.vimrc")\n' "$HOME" | sudo tee -a /root/.vimrc > /dev/null
+" root user link
+" printf 'execute "source " . fnameescape("%s/.vimrc")\n' "$HOME" | sudo tee -a /root/.vimrc > /dev/null
 
 " Portable Vim configuration: copy this file to ~/.vimrc (Vim 8+).
 set nocompatible
@@ -29,6 +29,75 @@ endif
 if exists('+termguicolors') && ($COLORTERM ==# 'truecolor' || $COLORTERM ==# '24bit')
   set termguicolors
 endif
+" Match the local Neovim palette in lua/ui/highlights.lua without plugins.
+" GUI/truecolor uses the same RGB values; cterm uses nearby 256-color values.
+function! s:ApplyColors() abort
+  for group in split('Normal NormalNC Identifier Variable Operator Symbol')
+    execute 'highlight ' . group . ' guifg=#e6edf3 guibg=NONE gui=NONE ctermfg=255 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Keyword Statement Conditional Repeat Label Exception Include Define Macro PreProc PreCondit StorageClass Tag Number Float Boolean Constant')
+    execute 'highlight ' . group . ' guifg=#79c0ff guibg=NONE gui=NONE ctermfg=111 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Function Directory')
+    execute 'highlight ' . group . ' guifg=#7ed8e8 guibg=NONE gui=NONE ctermfg=116 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Type Structure Typedef String Character')
+    execute 'highlight ' . group . ' guifg=#a5d6ff guibg=NONE gui=NONE ctermfg=153 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Comment')
+    execute 'highlight ' . group . ' guifg=#7d8590 guibg=NONE gui=italic ctermfg=102 ctermbg=NONE cterm=italic'
+  endfor
+  for group in split('Delimiter NonText SpecialKey')
+    execute 'highlight ' . group . ' guifg=#8b949e guibg=NONE gui=NONE ctermfg=246 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Special SpecialChar markdownCode')
+    execute 'highlight ' . group . ' guifg=#56d4dc guibg=NONE gui=NONE ctermfg=80 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('LineNr')
+    execute 'highlight ' . group . ' guifg=#6e7681 guibg=NONE gui=NONE ctermfg=243 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('SignColumn CursorLine')
+    execute 'highlight ' . group . ' guifg=NONE guibg=NONE gui=NONE ctermfg=NONE ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('CursorLineNr Title')
+    execute 'highlight ' . group . ' guifg=#e6edf3 guibg=NONE gui=bold ctermfg=255 ctermbg=NONE cterm=bold'
+  endfor
+  for group in split('Search')
+    execute 'highlight ' . group . ' guifg=#000000 guibg=#79c0ff gui=NONE ctermfg=16 ctermbg=111 cterm=NONE'
+  endfor
+  for group in split('IncSearch')
+    execute 'highlight ' . group . ' guifg=#000000 guibg=#a5d6ff gui=NONE ctermfg=16 ctermbg=153 cterm=NONE'
+  endfor
+  for group in split('Visual')
+    execute 'highlight ' . group . ' guifg=#000000 guibg=#87afd7 gui=NONE ctermfg=16 ctermbg=110 cterm=NONE'
+  endfor
+  for group in split('StatusLine')
+    execute 'highlight ' . group . ' guifg=#87afd7 guibg=NONE gui=NONE ctermfg=110 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('StatusLineNC VertSplit')
+    execute 'highlight ' . group . ' guifg=#262626 guibg=NONE gui=NONE ctermfg=235 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('Pmenu')
+    execute 'highlight ' . group . ' guifg=#e6edf3 guibg=NONE gui=NONE ctermfg=255 ctermbg=NONE cterm=NONE'
+  endfor
+  for group in split('PmenuSel')
+    execute 'highlight ' . group . ' guifg=#e6edf3 guibg=#2a2a2a gui=NONE ctermfg=255 ctermbg=235 cterm=NONE'
+  endfor
+  for group in split('DiffAdd')
+    execute 'highlight ' . group . ' guifg=NONE guibg=#1a3a1a gui=NONE ctermfg=NONE ctermbg=235 cterm=NONE'
+  endfor
+  for group in split('DiffDelete')
+    execute 'highlight ' . group . ' guifg=#555555 guibg=#3a1a1a gui=NONE ctermfg=240 ctermbg=235 cterm=NONE'
+  endfor
+  for group in split('DiffChange')
+    execute 'highlight ' . group . ' guifg=NONE guibg=#1a2a3a gui=NONE ctermfg=NONE ctermbg=235 cterm=NONE'
+  endfor
+  for group in split('DiffText')
+    execute 'highlight ' . group . ' guifg=NONE guibg=#2a4a6a gui=NONE ctermfg=NONE ctermbg=239 cterm=NONE'
+  endfor
+endfunction
+call s:ApplyColors()
+
 " Keep deletes local; copy ordinary yanks through the terminal when using SSH.
 set clipboard=
 function! s:CopyYank() abort
@@ -242,6 +311,7 @@ endif
 augroup portable_vim
   autocmd!
   autocmd FocusGained,BufEnter,CursorHold * if mode() !=# 'c' | checktime | endif
+  autocmd ColorScheme * call <SID>ApplyColors()
   autocmd FileType markdown call <SID>MarkdownSetup()
   if exists('##TextYankPost')
     autocmd TextYankPost * call <SID>CopyYank()
