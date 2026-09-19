@@ -36,15 +36,19 @@ function! s:CopyYank() abort
   if v:event.regtype ==# 'V'
     let text .= "\n"
   endif
+  call s:CopyText(text, v:event.regtype)
+endfunction
+
+function! s:CopyText(text, ...) abort
   if empty($SSH_CONNECTION) && empty($SSH_TTY)
     if executable('pbcopy')
-      call system('pbcopy', text)
+      call system('pbcopy', a:text)
       if v:shell_error
         echohl WarningMsg | echom 'Clipboard: pbcopy failed' | echohl None
       endif
       return
     elseif has('clipboard')
-      call setreg('+', v:event.regcontents, v:event.regtype)
+      call setreg('+', a:text, a:0 ? a:1 : 'v')
       return
     endif
   endif
@@ -52,7 +56,7 @@ function! s:CopyYank() abort
     echohl WarningMsg | echom 'Clipboard: install base64 for OSC 52' | echohl None
     return
   endif
-  let encoded = system('base64', text)
+  let encoded = system('base64', a:text)
   if v:shell_error
     echohl WarningMsg | echom 'Clipboard: base64 failed' | echohl None
     return
@@ -67,6 +71,139 @@ function! s:CopyYank() abort
   catch
     echohl WarningMsg | echom 'Clipboard: could not write OSC 52 to terminal' | echohl None
   endtry
+endfunction
+
+" Search from Vim's current directory; rg respects .gitignore when available.
+function! s:Search(text, word) abort
+  if empty(a:text)
+    return
+  endif
+  if executable('rg')
+    let output = systemlist('rg --vimgrep --no-heading --color never --fixed-strings '
+          \ . (a:word ? '--word-regexp ' : '') . '-- ' . shellescape(a:text) . ' .')
+    if v:shell_error > 1
+      echohl ErrorMsg | echom join(output, "\n") | echohl None
+      return
+    endif
+    call setqflist([], 'r', {'title': 'Search: ' . a:text,
+          \ 'lines': output, 'efm': '%f:%l:%c:%m'})
+  else
+    let pattern = (a:word ? '\<' : '') . '\V' . escape(a:text, '\/')
+          \ . (a:word ? '\m\>' : '')
+    call setqflist([], 'r')
+    try
+      execute 'silent noautocmd vimgrep /' . pattern . '/gj **/*'
+    catch /^Vim\%((\a\+)\)\=:E480/
+      " No matches is a normal search result.
+    endtry
+  endif
+  if empty(getqflist())
+    cclose
+    echom 'No matches: ' . a:text
+  else
+    botright copen
+  endif
+endfunction
+
+function! s:CopyPath(kind, range, first, last) abort
+  if empty(expand('%'))
+    echohl WarningMsg | echom 'Save this buffer before copying its path' | echohl None
+    return
+  endif
+  let path = expand(a:kind ==# 'full' ? '%:p' : a:kind ==# 'relative' ? '%:p:.' : '%:t')
+  if a:range
+    let path .= '#L' . a:first . (a:first == a:last ? '' : '-L' . a:last)
+  endif
+  call setreg('"', path)
+  call s:CopyText(path)
+endfunction
+command! -range Cfp call <SID>CopyPath('full', <range>, <line1>, <line2>)
+command! -range Crp call <SID>CopyPath('relative', <range>, <line1>, <line2>)
+command! -range Cfn call <SID>CopyPath('filename', <range>, <line1>, <line2>)
+
+" Use the filetype's comment delimiters, including paired HTML/C comments.
+function! s:ToggleComment(first, last) abort
+  let marker = stridx(&l:commentstring, '%s')
+  if marker < 0
+    echohl WarningMsg | echom 'No commentstring for this filetype' | echohl None
+    return
+  endif
+  let left = substitute(strpart(&l:commentstring, 0, marker), '\s\+$', '', '')
+  let right = substitute(strpart(&l:commentstring, marker + 2), '^\s\+', '', '')
+  if empty(left) && empty(right)
+    return
+  endif
+  let lines = getline(a:first, a:last)
+  let uncomment = 1
+  for line in lines
+    let body = substitute(line, '^\s*', '', '')
+    if empty(body)
+      continue
+    endif
+    if strpart(body, 0, strlen(left)) !=# left
+          \ || (!empty(right) && strpart(body, strlen(body) - strlen(right)) !=# right)
+      let uncomment = 0
+      break
+    endif
+  endfor
+  let result = []
+  for line in lines
+    let indent = matchstr(line, '^\s*')
+    let body = strpart(line, strlen(indent))
+    if !empty(body)
+      if uncomment
+        let body = strpart(body, strlen(left), strlen(body) - strlen(left) - strlen(right))
+        let body = substitute(body, '^ ', '', '')
+        if !empty(right)
+          let body = substitute(body, ' $', '', '')
+        endif
+      else
+        let body = left . ' ' . body . (empty(right) ? '' : ' ' . right)
+      endif
+    endif
+    call add(result, indent . body)
+  endfor
+  call setline(a:first, result)
+endfunction
+
+let s:terminal_buffer = get(s:, 'terminal_buffer', -1)
+function! s:ToggleTerminal() abort
+  let window = bufwinid(s:terminal_buffer)
+  if window != -1
+    call win_gotoid(window)
+    if winnr('$') == 1
+      enew
+    else
+      hide
+    endif
+    return
+  endif
+  if bufexists(s:terminal_buffer) && term_getstatus(s:terminal_buffer) =~# 'running'
+    botright 12split
+    execute 'buffer ' . s:terminal_buffer
+  else
+    botright 12new
+    let s:terminal_buffer = term_start(&shell, {'curwin': 1, 'term_finish': 'close'})
+  endif
+  if term_getstatus(s:terminal_buffer) =~# 'normal'
+    call feedkeys('i', 'n')
+  endif
+endfunction
+
+function! s:ToggleTodo() abort
+  let line = getline('.')
+  let pattern = '^\(\s*\%([-+*]\|\d\+[.)]\)\s\+\)\[\([ xX]\?\)\]'
+  let parts = matchlist(line, pattern)
+  if !empty(parts)
+    call setline('.', substitute(line, pattern,
+          \ '\=submatch(1) . (parts[2] =~? "x" ? "[]" : "[x]")', ''))
+  endif
+endfunction
+
+function! s:MarkdownSetup() abort
+  setlocal wrap linebreak breakindent breakindentopt=shift:2,min:20 showbreak=
+  command! -buffer Todo call <SID>ToggleTodo()
+  nnoremap <buffer> <silent> <leader>x :call <SID>ToggleTodo()<CR>
 endfunction
 
 nnoremap ; :
@@ -89,11 +226,24 @@ nnoremap <C-b> :ls<CR>:buffer<Space>
 nnoremap <C-f> /
 nnoremap <leader>: q:
 nnoremap <leader>fh :help<Space>
+nnoremap <silent> <C-g> :call <SID>Search(input('Search: '), 0)<CR>
+nnoremap <silent> <leader>sw :call <SID>Search(expand('<cword>'), 1)<CR>
+nnoremap <silent> gcc :<C-u>call <SID>ToggleComment(line('.'), line('.') + v:count1 - 1)<CR>
+xnoremap <silent> gc :<C-u>call <SID>ToggleComment(line("'<"), line("'>"))<CR>
+if has('terminal')
+  nnoremap <silent> <C-t> :call <SID>ToggleTerminal()<CR>
+  tnoremap <silent> <C-t> <C-\><C-n>:call <SID>ToggleTerminal()<CR>
+  tnoremap <Esc> <C-\><C-n>
+endif
 
 augroup portable_vim
   autocmd!
   autocmd FocusGained,BufEnter,CursorHold * if mode() !=# 'c' | checktime | endif
+  autocmd FileType markdown call <SID>MarkdownSetup()
   if exists('##TextYankPost')
     autocmd TextYankPost * call <SID>CopyYank()
   endif
 augroup END
+if &filetype ==# 'markdown'
+  call s:MarkdownSetup()
+endif
