@@ -1,0 +1,98 @@
+" Portable Vim configuration: copy this file to ~/.vimrc (Vim 8+).
+set nocompatible
+let mapleader = ' '
+filetype plugin indent on
+syntax enable
+
+set encoding=utf-8
+set fileencoding=utf-8
+set noswapfile hidden autoread
+set synmaxcol=300 updatetime=250
+set helplang=ja
+set number relativenumber nowrap showmatch
+set shiftwidth=2 tabstop=2 expandtab autoindent smartindent
+set hlsearch incsearch matchtime=1
+set timeoutlen=300
+set wildmenu
+set wildmode=longest:full,full
+set laststatus=2
+set background=dark
+if exists('+mouse')
+  set mouse=a
+endif
+if exists('+signcolumn')
+  set signcolumn=yes
+endif
+if exists('+termguicolors') && ($COLORTERM ==# 'truecolor' || $COLORTERM ==# '24bit')
+  set termguicolors
+endif
+" Keep deletes local; copy ordinary yanks through the terminal when using SSH.
+set clipboard=
+function! s:CopyYank() abort
+  if v:event.operator !=# 'y' || v:event.regname ==# '_'
+    return
+  endif
+  let text = join(v:event.regcontents, "\n")
+  if v:event.regtype ==# 'V'
+    let text .= "\n"
+  endif
+  if empty($SSH_CONNECTION) && empty($SSH_TTY)
+    if executable('pbcopy')
+      call system('pbcopy', text)
+      if v:shell_error
+        echohl WarningMsg | echom 'Clipboard: pbcopy failed' | echohl None
+      endif
+      return
+    elseif has('clipboard')
+      call setreg('+', v:event.regcontents, v:event.regtype)
+      return
+    endif
+  endif
+  if !executable('base64')
+    echohl WarningMsg | echom 'Clipboard: install base64 for OSC 52' | echohl None
+    return
+  endif
+  let encoded = system('base64', text)
+  if v:shell_error
+    echohl WarningMsg | echom 'Clipboard: base64 failed' | echohl None
+    return
+  endif
+  let sequence = "\e]52;c;" . substitute(encoded, '[\r\n]', '', 'g') . "\x07"
+  " tmux requires allow-passthrough on for this wrapper.
+  if !empty($TMUX)
+    let sequence = "\ePtmux;" . substitute(sequence, "\e", "\e\e", 'g') . "\e\\"
+  endif
+  try
+    call writefile([sequence], '/dev/tty', 'b')
+  catch
+    echohl WarningMsg | echom 'Clipboard: could not write OSC 52 to terminal' | echohl None
+  endtry
+endfunction
+
+nnoremap ; :
+inoremap <C-j> <Esc>
+xnoremap <C-j> <Esc>
+nnoremap <CR> <C-w>w
+nnoremap <C-j> :bprevious<CR>
+nnoremap <C-n> :bnext<CR>
+nnoremap <leader>e :bdelete<CR>
+nnoremap <leader>/ :nohlsearch<CR>
+nnoremap <leader>s :source %<CR>
+nnoremap <leader>fp :echo expand('%')<CR>
+nnoremap <leader>? :map<CR>
+
+" Native replacements for Neovim pickers; Tab completes file/buffer names.
+nnoremap <C-p> :edit<Space>
+nnoremap <C-l> :browse oldfiles<CR>
+nnoremap <C-b> :ls<CR>:buffer<Space>
+nnoremap <C-f> /
+nnoremap <leader>: q:
+nnoremap <leader>fh :help<Space>
+
+augroup portable_vim
+  autocmd!
+  autocmd FocusGained,BufEnter,CursorHold * if mode() !=# 'c' | checktime | endif
+  if exists('##TextYankPost')
+    autocmd TextYankPost * call <SID>CopyYank()
+  endif
+augroup END
