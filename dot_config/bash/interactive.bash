@@ -55,7 +55,17 @@ if [[ ${BLE_VERSION-} ]]; then
     ble-import -d integration/fzf-completion
     ble-import -d integration/fzf-key-bindings
     # Use fzf for ordinary Tab completion, including files and directories.
-    ble-import -d integration/fzf-menu
+    ble-import -d integration/fzf-menu -C '
+      function ble/contrib/integration:fzf-menu/SELECTOR {
+        # Older Ubuntu/Debian fzf supports -i, but not --ignore-case.
+        local -a options=(--ansi --query "$common_prefix" --delimiter "$sep" --with-nth=2.. --nth=1)
+        [[ :$comp_type: != *:i:* ]] || options+=(-i)
+        local ret
+        ble/util/c2w 0x2500
+        ((ret == 1)) || options+=(--no-unicode)
+        printf "%s\n" "$@" | fzf "${options[@]}" | cut -d "$sep" -f 1
+      }
+    '
   fi
   ble-attach
 else
