@@ -76,6 +76,7 @@ nnoremap <CR> <C-w>w
 nnoremap <C-j> :bprevious<CR>
 nnoremap <C-n> :bnext<CR>
 nnoremap <leader>e :bdelete<CR>
+nnoremap <silent> E :Explore<CR>
 nnoremap <leader>/ :nohlsearch<CR>
 nnoremap <leader>s :source %<CR>
 nnoremap <leader>fp :echo expand('%')<CR>
