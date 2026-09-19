@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run on Linux after downloading this directory or applying it with chezmoi.
-# Ubuntu/Debian dependencies: bash-completion fzf curl xz-utils
+# Install Ubuntu/Debian packages with the bootstrap script in README.md first.
 set -euo pipefail
 
 if [[ $(uname -s) != Linux ]]; then

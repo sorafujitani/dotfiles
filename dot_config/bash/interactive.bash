@@ -51,6 +51,8 @@ if [[ ${BLE_VERSION-} ]]; then
   if command -v fzf >/dev/null 2>&1; then
     ble-import -d integration/fzf-completion
     ble-import -d integration/fzf-key-bindings
+    # Use fzf for ordinary Tab completion, including files and directories.
+    ble-import -d integration/fzf-menu
   fi
   ble-attach
 else
