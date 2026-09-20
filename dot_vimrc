@@ -29,6 +29,15 @@ endif
 if exists('+termguicolors') && ($COLORTERM ==# 'truecolor' || $COLORTERM ==# '24bit')
   set termguicolors
 endif
+" Match Neovim's mode-dependent cursor shapes in terminals and GUI Vim.
+if exists('+guicursor')
+  set guicursor=n-v-c:block,i-ci-ve:ver25,r-cr-o:hor20
+endif
+if !has('gui_running') && exists('+t_SI')
+  let &t_SI = "\<Esc>[6 q"
+  let &t_SR = "\<Esc>[4 q"
+  let &t_EI = "\<Esc>[2 q"
+endif
 " Match the local Neovim palette in lua/ui/highlights.lua without plugins.
 " GUI/truecolor uses the same RGB values; cterm uses nearby 256-color values.
 function! s:ApplyColors() abort
