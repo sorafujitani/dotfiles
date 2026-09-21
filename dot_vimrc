@@ -14,6 +14,7 @@ set synmaxcol=300 updatetime=250
 set helplang=ja
 set number relativenumber nowrap showmatch
 set shiftwidth=2 tabstop=2 expandtab autoindent smartindent
+set backspace=indent,eol,start
 set hlsearch incsearch matchtime=1
 set timeoutlen=300
 set wildmenu
@@ -271,6 +272,42 @@ function! s:ToggleTerminal() abort
   endif
 endfunction
 
+" Insert pairs without duplicating an existing closing character.
+function! s:OpenPair(open, close) abort
+  let before = strpart(getline('.'), 0, col('.') - 1)
+  let after = strpart(getline('.'), col('.') - 1, 1)
+  if strlen(matchstr(before, '\\\+$')) % 2
+    return a:open
+  endif
+  if a:open ==# a:close
+    if after ==# a:close
+      return "\<Right>"
+    endif
+    " Keep apostrophes in words and Vim comment prefixes as plain text.
+    if before =~# '\k$' || (&filetype ==# 'vim' && a:open ==# '"' && before =~# '^\s*$')
+      return a:open
+    endif
+  endif
+  if empty(after) || after =~# '\s' || index([')', ']', '}', ',', ';'], after) >= 0
+    return a:open . a:close . "\<Left>"
+  endif
+  return a:open
+endfunction
+
+function! s:ClosePair(close) abort
+  return strpart(getline('.'), col('.') - 1, 1) ==# a:close ? "\<Right>" : a:close
+endfunction
+
+function! s:PairBackspace() abort
+  let before = strpart(getline('.'), 0, col('.') - 1)
+  let pair = matchstr(before, '.$') . strpart(getline('.'), col('.') - 1, 1)
+  if index(['()', '[]', '{}', '""', "''", '``'], pair) >= 0
+        \ && strlen(matchstr(strpart(before, 0, strlen(before) - 1), '\\\+$')) % 2 == 0
+    return "\<BS>\<Del>"
+  endif
+  return "\<BS>"
+endfunction
+
 function! s:ToggleTodo() abort
   let line = getline('.')
   let pattern = '^\(\s*\%([-+*]\|\d\+[.)]\)\s\+\)\[\([ xX]\?\)\]'
@@ -289,6 +326,17 @@ endfunction
 
 nnoremap ; :
 inoremap <C-j> <Esc>
+" Evaluate after earlier typed characters have been inserted.
+inoremap ( <C-r>=<SID>OpenPair('(', ')')<CR>
+inoremap [ <C-r>=<SID>OpenPair('[', ']')<CR>
+inoremap { <C-r>=<SID>OpenPair('{', '}')<CR>
+inoremap ) <C-r>=<SID>ClosePair(')')<CR>
+inoremap ] <C-r>=<SID>ClosePair(']')<CR>
+inoremap } <C-r>=<SID>ClosePair('}')<CR>
+inoremap " <C-r>=<SID>OpenPair('"', '"')<CR>
+inoremap ' <C-r>=<SID>OpenPair("'", "'")<CR>
+inoremap ` <C-r>=<SID>OpenPair('`', '`')<CR>
+inoremap <BS> <C-r>=<SID>PairBackspace()<CR>
 xnoremap <C-j> <Esc>
 nnoremap <CR> <C-w>w
 nnoremap <C-j> :bprevious<CR>
