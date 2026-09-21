@@ -97,3 +97,22 @@ herdr は公式インストーラーで `~/.local/bin` に導入します。導�
 設定を更新した既存セッションには `exec bash -l` で反映します。
 
 fzf 連携の公式説明: https://github.com/akinomyoga/blesh-contrib/blob/master/integration/fzf.md
+
+## 4. Vim の設定を更新する
+
+Bash のセットアップでは vimrc は更新されません。SSH先で普段のユーザーとして実行してください。
+
+```bash
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_vimrc -o "$HOME/.vimrc"
+```
+
+`Permission denied` が出て、`.vimrc` の所有者が root になっていたら、自分に戻して再実行します。
+
+```bash
+ls -l "$HOME/.vimrc"
+sudo chown "$(id -un):$(id -gn)" "$HOME/.vimrc"
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_vimrc -o "$HOME/.vimrc"
+```
+
+Vim を開き直すか、開いている Vim で `:source ~/.vimrc` を実行すると反映されます。
+`sudo vim` の場合は `:source /home/isucon/.vimrc` のように、普段のユーザーのパスを指定してください。
