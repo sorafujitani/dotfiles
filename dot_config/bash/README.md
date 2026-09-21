@@ -2,6 +2,24 @@
 
 Ubuntu / DebianのBash 4以上、rootまたはsudo権限が必要です。
 
+## VMで更新する（導入済みの場合）
+
+SSH先で普段のユーザーとして実行します。
+
+**Vim の更新**
+
+```bash
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_vimrc -o "$HOME/.vimrc"
+```
+
+Vim を開き直して反映します。権限エラーの対処は「4. Vim の設定を更新する」を参照してください。
+
+**Bash・補完・ツールの更新**
+
+```bash
+bash ~/setup-remote-bash.sh && exec bash -l
+```
+
 ## 1. 導入スクリプトを保存する
 
 次の内容を、設定したい環境の `~/setup-remote-bash.sh` に保存してください。
