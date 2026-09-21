@@ -55,8 +55,8 @@ if [[ ${BLE_VERSION-} ]]; then
   bleopt complete_auto_history=1
   bleopt complete_auto_complete_opts=syntax-disabled
   bleopt edit_bell=
-  ble-bind -f up history-search-backward
-  ble-bind -f down history-search-forward
+  ble-bind -f up 'history-search-backward hide-status'
+  ble-bind -f down 'history-search-forward hide-status'
   if command -v fzf >/dev/null 2>&1; then
     ble-import -d integration/fzf-completion
     ble-import -d integration/fzf-key-bindings
