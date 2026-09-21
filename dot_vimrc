@@ -7,6 +7,21 @@ let mapleader = ' '
 filetype plugin indent on
 syntax enable
 
+" Load plugins beside this vimrc, including when root sources the user's vimrc.
+let s:plugin_dir = expand('<sfile>:p:h') . '/.vim/dotfiles'
+let s:fzf_dir = s:plugin_dir . '/fzf-v0.65.2'
+let s:fzf_vim_dir = s:plugin_dir . '/fzf.vim-8a006812'
+if filereadable(s:fzf_dir . '/plugin/fzf.vim') && filereadable(s:fzf_vim_dir . '/plugin/fzf.vim')
+  for s:dir in [s:fzf_dir, s:fzf_vim_dir]
+    if index(split(&runtimepath, ','), s:dir) < 0
+      let &runtimepath .= ',' . escape(s:dir, ',')
+    endif
+    execute 'source ' . fnameescape(s:dir . '/plugin/fzf.vim')
+  endfor
+  let g:fzf_vim = get(g:, 'fzf_vim', {})
+  let g:fzf_vim.preview_window = []
+endif
+
 set encoding=utf-8
 set fileencoding=utf-8
 set noswapfile hidden autoread
@@ -357,6 +372,15 @@ nnoremap <leader>: q:
 nnoremap <leader>fh :help<Space>
 nnoremap <silent> <C-g> :call <SID>Search(input('Search: '), 0)<CR>
 nnoremap <silent> <leader>sw :call <SID>Search(expand('<cword>'), 1)<CR>
+if exists(':Files') == 2
+  nnoremap <silent> <C-p> :Files<CR>
+  nnoremap <silent> <C-l> :History<CR>
+  nnoremap <silent> <C-b> :Buffers<CR>
+  nnoremap <silent> <C-f> :BLines<CR>
+  nnoremap <silent> <leader>: :History:<CR>
+  nnoremap <silent> <leader>fh :Helptags<CR>
+  nnoremap <silent> <C-g> :RG<CR>
+endif
 nnoremap <silent> gcc :<C-u>call <SID>ToggleComment(line('.'), line('.') + v:count1 - 1)<CR>
 xnoremap <silent> gc :<C-u>call <SID>ToggleComment(line("'<"), line("'>"))<CR>
 if has('terminal')

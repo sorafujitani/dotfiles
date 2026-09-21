@@ -20,6 +20,8 @@ Vim を開き直して反映します。権限エラーの対処は「4. Vim の
 bash ~/setup-remote-bash.sh && exec bash -l
 ```
 
+fzf.vim の導入・更新は Bash のセットアップで行います。Vim でも使う場合は上の両方を実行してください。
+
 ## 1. 導入スクリプトを保存する
 
 次の内容を、設定したい環境の `~/setup-remote-bash.sh` に保存してください。
@@ -76,6 +78,7 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 | `bash-completion` / `fzf` | Bash の補完・候補や履歴の絞り込み |
 | `curl` / `xz` | HTTP 通信・ダウンロード、XZ ファイルの圧縮・展開 |
 | `git` / `vim` | ソース管理・ファイル編集 |
+| `fzf.vim` | Vim 内でファイル・履歴・文字列を絞り込み |
 | `rg` / `fdfind` | ファイルをまたぐ文字列検索・ファイル名検索 |
 | `batcat` / `less` / `tree` | 色付きのファイル表示・長い出力の閲覧・ディレクトリ構造の表示 |
 | `jq` | JSON の整形・値の抽出 |
@@ -117,6 +120,22 @@ herdr は公式インストーラーで `~/.local/bin` に導入します。導�
 fzf 連携の公式説明: https://github.com/akinomyoga/blesh-contrib/blob/master/integration/fzf.md
 
 ## 4. Vim の設定を更新する
+
+セットアップで fzf.vim と対応版 fzf を `~/.vim/dotfiles` に導入します。Vim を開き直すと使えます。`sudo vim` でも、普段のユーザーの vimrc を読み込む設定なら利用できます。
+
+| キー | 検索対象 |
+| --- | --- |
+| `Ctrl + P` | ファイル |
+| `Ctrl + G` | カレントディレクトリ配下の文字列（入力ごとに rg で検索） |
+| `Ctrl + B` | 開いているバッファ |
+| `Ctrl + L` | 最近開いたファイル |
+| `Ctrl + F` | 現在のバッファの行 |
+| `Space` → `:` | コマンド履歴 |
+| `Space` → `f` → `h` | ヘルプ |
+
+候補は文字入力で絞り込み、`Enter` で開き、`Esc` で閉じます。検索範囲は Vim の `:pwd` で確認し、`:cd ~/private_isu` などで変更できます。プラグイン未導入時は従来の検索に戻ります。
+
+公式: https://github.com/junegunn/fzf.vim
 
 挿入モードで `()`・`[]`・`{}`・ダブルクォート・シングルクォート・バッククォートを自動補完します。閉じ文字の入力で次へ進み、空のペアは `Backspace` でまとめて削除できます。
 

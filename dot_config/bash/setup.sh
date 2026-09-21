@@ -38,6 +38,28 @@ for tool in rg fdfind; do
   command -v "$tool" >/dev/null || { printf 'Missing command after installation: %s\n' "$tool" >&2; exit 1; }
 done
 
+# Keep Vim plugins and their compatible binary separate from apt's Bash fzf.
+# Versioned directories leave existing user plugins untouched.
+vim_plugins=$HOME/.vim/dotfiles
+mkdir -p "$vim_plugins"
+install_vim_plugin() (
+  local name=$1 repository=$2 revision=$3
+  local destination=$vim_plugins/$name
+  [[ ! -d $destination ]] || exit 0
+  local plugin_tmp
+  plugin_tmp=$(mktemp -d "$vim_plugins/.install.XXXXXX")
+  trap 'rm -rf -- "$plugin_tmp"' EXIT
+  git init -q "$plugin_tmp"
+  git -C "$plugin_tmp" remote add origin "$repository"
+  git -C "$plugin_tmp" fetch --depth 1 origin "$revision"
+  git -C "$plugin_tmp" checkout -q --detach FETCH_HEAD
+  mv "$plugin_tmp" "$destination"
+)
+install_vim_plugin fzf-v0.65.2 https://github.com/junegunn/fzf.git v0.65.2
+install_vim_plugin fzf.vim-8a006812 https://github.com/junegunn/fzf.vim.git 8a0068127ac9ee23d71dab2944ce995726bef462
+bash "$vim_plugins/fzf-v0.65.2/install" --bin
+"$vim_plugins/fzf-v0.65.2/bin/fzf" --version
+
 # Install Herdr for the current user with the official checksum-verifying installer.
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;

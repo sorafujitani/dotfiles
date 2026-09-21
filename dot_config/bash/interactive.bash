@@ -51,6 +51,8 @@ if [[ ${BLE_VERSION-} ]]; then
   bleopt highlight_filename=
   bleopt highlight_variable=
   ble-face -s auto_complete fg=240
+  ble-face -s region_match none
+  ble-face -s region_insert none
   bleopt history_share=1
   bleopt complete_auto_history=1
   bleopt complete_auto_complete_opts=syntax-disabled
