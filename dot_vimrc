@@ -394,6 +394,9 @@ augroup portable_vim
   autocmd FocusGained,BufEnter,CursorHold * if mode() !=# 'c' | checktime | endif
   autocmd ColorScheme * call <SID>ApplyColors()
   autocmd FileType markdown call <SID>MarkdownSetup()
+  " Let fzf handle cancellation instead of entering Terminal-Normal mode.
+  autocmd FileType fzf tnoremap <buffer> <Esc> <Esc>
+  autocmd FileType fzf tnoremap <buffer> <C-c> <C-c>
   if exists('##TextYankPost')
     autocmd TextYankPost * call <SID>CopyYank()
   endif
