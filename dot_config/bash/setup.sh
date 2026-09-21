@@ -25,6 +25,8 @@ packages=(
   strace tcpdump dnsutils iproute2 procps psmisc ncdu
   # File inspection, archives and shell script checks
   file zip shellcheck
+  # MySQL slow query analysis and diagnostics
+  percona-toolkit
 )
 apt_command=(apt-get)
 if (( EUID != 0 )); then
@@ -34,7 +36,7 @@ fi
 "${apt_command[@]}" update
 "${apt_command[@]}" install -y "${packages[@]}"
 
-for tool in rg fdfind; do
+for tool in rg fdfind pt-query-digest; do
   command -v "$tool" >/dev/null || { printf 'Missing command after installation: %s\n' "$tool" >&2; exit 1; }
 done
 

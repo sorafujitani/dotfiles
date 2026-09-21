@@ -93,6 +93,7 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 | `ncdu` | ディスク使用量の調査 |
 | `file` / `zip` | ファイル形式の確認・ZIP の作成 |
 | `shellcheck` | シェルスクリプトの問題を検出 |
+| `percona-toolkit` | `pt-query-digest` などで MySQL のスロークエリを分析 |
 
 Ubuntu / Debian では `fd-find` のコマンド名は `fdfind`、`bat` は `batcat` です。`ca-certificates` は HTTPS 通信、`xz-utils` は ble.sh の配布ファイルの展開に使います。
 
