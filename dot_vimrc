@@ -65,7 +65,7 @@ function! s:ApplyColors() abort
   for group in split('LineNr')
     execute 'highlight ' . group . ' guifg=#6e7681 guibg=NONE gui=NONE ctermfg=243 ctermbg=NONE cterm=NONE'
   endfor
-  for group in split('SignColumn CursorLine')
+  for group in split('SignColumn CursorLine MatchParen')
     execute 'highlight ' . group . ' guifg=NONE guibg=NONE gui=NONE ctermfg=NONE ctermbg=NONE cterm=NONE'
   endfor
   for group in split('CursorLineNr Title')
