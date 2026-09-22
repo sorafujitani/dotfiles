@@ -94,6 +94,8 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config
 | `file` / `zip` | ファイル形式の確認・ZIP の作成 |
 | `shellcheck` | シェルスクリプトの問題を検出 |
 | `percona-toolkit` | `pt-query-digest` などで MySQL のスロークエリを分析 |
+| `pprotein` / `pprotein-agent` | プロファイルとログの収集・閲覧 |
+| `alp` / `slp` | pprotein から呼び出す HTTP・SQL ログ分析 |
 
 Ubuntu / Debian では `fd-find` のコマンド名は `fdfind`、`bat` は `batcat` です。`ca-certificates` は HTTPS 通信、`xz-utils` は ble.sh の配布ファイルの展開に使います。
 
@@ -156,3 +158,44 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_vimrc 
 
 Vim を開き直すか、開いている Vim で `:source ~/.vimrc` を実行すると反映されます。
 `sudo vim` の場合は `:source /home/isucon/.vimrc` のように、普段のユーザーのパスを指定してください。
+
+## 5. pprotein で性能を調べる
+
+セットアップは Linux の amd64 / arm64 向けに、pprotein v1.2.4、alp v1.0.21、slp v0.2.1 を `~/.local/bin` に導入します。既存のコマンドは上書きせず、自動起動もしません。
+
+**起動前に、ファイアウォールなどで 9000・19000 番ポートへの接続元を制限してください。** 本体と agent は全インターフェースで待ち受けます。認証のない管理画面やログ取得先をインターネットへ公開しないでください。
+
+解析用の VM で本体を起動します。結果は作業ディレクトリの `data/` に保存されます。
+
+```bash
+mkdir -p "$HOME/pprotein"
+cd "$HOME/pprotein"
+pprotein
+```
+
+手元の端末から SSH 転送し、ブラウザで `http://localhost:9000` を開きます。`user@host` は解析用 VM の接続先に置き換えてください。
+
+```bash
+ssh -N -L 9000:127.0.0.1:9000 user@host
+```
+
+計測対象の VM では、別の端末で agent を起動します。ログのパスは環境に合わせて変更し、実行ユーザーに読取り権限を付けてください。
+
+```bash
+PPROTEIN_HTTPLOG=/var/log/nginx/access.log \
+PPROTEIN_SLOWLOG=/var/log/mysql/mysql-slow.log \
+pprotein-agent
+```
+
+画面の収集設定に、agent の取得先を登録します。同じ VM なら次の URL を使えます。別の VM なら `127.0.0.1` をその VM のプライベートアドレスに置き換えてください。
+
+- HTTP ログ: `http://127.0.0.1:19000/debug/log/httplog`
+- SQL ログ: `http://127.0.0.1:19000/debug/log/slowlog`
+
+HTTP ログは LTSV 形式、SQL ログは MySQL のスロークエリログが必要です。セットアップは Nginx・MySQL のログ設定を変更しません。
+
+Go アプリの計測には、対象アプリ自身に pprof または pprotein の連携を組み込んでください。単独起動した agent のプロファイルは、対象アプリのものではありません。
+
+起動した本体・agent は、それぞれの端末で `Ctrl + C` を押すと停止します。
+
+公式: https://github.com/kaz/pprotein

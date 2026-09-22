@@ -78,6 +78,35 @@ if ! command -v herdr >/dev/null 2>&1; then
 fi
 herdr --version
 
+# Install pprotein and its log analyzers; leave existing commands untouched.
+(
+  case "$(uname -m)" in
+    x86_64|amd64) arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
+    *) printf 'Unsupported pprotein architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
+  esac
+  pprotein_tmp=$(mktemp -d)
+  trap 'rm -rf -- "$pprotein_tmp"' EXIT
+  mkdir -p "$HOME/.local/bin"
+  for tool in pprotein alp slp; do
+    if command -v "$tool" >/dev/null 2>&1 &&
+      { [[ $tool != pprotein ]] || command -v pprotein-agent >/dev/null 2>&1; }; then
+      continue
+    fi
+    case "$tool" in
+      pprotein) release="kaz/pprotein/releases/download/v1.2.4/pprotein_1.2.4_linux_${arch}.tar.gz"; binaries=(pprotein pprotein-agent) ;;
+      alp) release="tkuchiki/alp/releases/download/v1.0.21/alp_linux_${arch}.tar.gz"; binaries=(alp) ;;
+      slp) release="tkuchiki/slp/releases/download/v0.2.1/slp_linux_${arch}.tar.gz"; binaries=(slp) ;;
+    esac
+    curl --fail --location --retry 2 --connect-timeout 15 --max-time 120 \
+      "https://github.com/$release" --output "$pprotein_tmp/$tool.tar.gz"
+    tar -xzf "$pprotein_tmp/$tool.tar.gz" -C "$pprotein_tmp" "${binaries[@]}"
+    for binary in "${binaries[@]}"; do
+      command -v "$binary" >/dev/null 2>&1 || install -m 755 "$pprotein_tmp/$binary" "$HOME/.local/bin/$binary"
+    done
+  done
+)
+
 if [[ ! -r $data_dir/blesh/ble.sh ]]; then
   for dependency in curl tar xz; do
     command -v "$dependency" >/dev/null || { printf 'Missing command: %s\n' "$dependency" >&2; exit 1; }
