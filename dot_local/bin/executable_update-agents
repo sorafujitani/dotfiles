@@ -1,5 +1,8 @@
-#!/bin/bash
-# Update installed agent CLIs using their own updaters.
+#!/bin/sh
+# Usage: update-agents [--dry-run]
+# Standalone POSIX sh script; no dotfiles setup or extra files needed.
+# Updates installed CLIs only; their updaters may need npm/brew and network access.
+# To paste into a terminal, enclose this file's contents in: sh <<'SH' ... SH
 set -u
 
 dry_run=false
