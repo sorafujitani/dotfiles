@@ -1,6 +1,6 @@
 # Bashの補完・履歴を設定する
 
-Ubuntu / DebianのBash 4以上、rootまたはsudo権限が必要です。
+Ubuntu / DebianのBash 4以上、curl、rootまたはsudo権限が必要です。
 
 ## VMで更新する（導入済みの場合）
 
@@ -17,45 +17,24 @@ Vim を開き直して反映します。権限エラーの対処は「4. Vim の
 **Bash・補完・ツールの更新**
 
 ```bash
-bash ~/setup-remote-bash.sh && exec bash -l
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config/bash/install.sh -o "$HOME/setup-remote-bash.sh" && bash "$HOME/setup-remote-bash.sh" && exec bash -l
 ```
 
 fzf.vim の導入・更新は Bash のセットアップで行います。Vim でも使う場合は上の両方を実行してください。
 
 ## 1. 導入スクリプトを保存する
 
-次の内容を、設定したい環境の `~/setup-remote-bash.sh` に保存してください。
+初回導入・更新は、設定したい環境で次の一コマンドを実行します。スクリプトの保存から実行まで行うため、次の「2」の操作は不要です。
 
 ```bash
-#!/usr/bin/env bash
-set -e
-
-# Bootstrap downloads; setup.sh installs the remaining tools.
-if (( EUID == 0 )); then
-  apt-get update
-  apt-get install -y curl ca-certificates
-else
-  sudo apt-get update
-  sudo apt-get install -y curl ca-certificates
-fi
-
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
-download_dir=$(mktemp -d)
-trap 'rm -rf -- "$download_dir"' EXIT
-base_url=https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config/bash
-for file in interactive.bash setup.sh; do
-  curl -fL --retry 2 "$base_url/$file" -o "$download_dir/$file"
-done
-
-mkdir -p "$config_dir"
-for file in interactive.bash setup.sh; do
-  if [[ -e "$config_dir/$file" ]]; then
-    cp -p "$config_dir/$file" "$config_dir/$file.backup.$(date +%Y%m%d%H%M%S).$$"
-  fi
-  cp "$download_dir/$file" "$config_dir/$file"
-done
-bash "$config_dir/setup.sh"
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config/bash/install.sh -o "$HOME/setup-remote-bash.sh" && bash "$HOME/setup-remote-bash.sh" && exec bash -l
 ```
+
+普段のユーザーとして実行してください。パッケージの導入時にsudoを使います。設定だけでなく、下表のツールもインストールします。
+
+既存の `interactive.bash` と `setup.sh` は、同じディレクトリの `.backup.*` ファイルに退避してから更新します。ダウンロードに失敗した場合は、設定を置き換えずに終了します。
+
+curlがない場合は、先に `sudo apt-get update && sudo apt-get install -y curl ca-certificates` を実行してください。rootの場合はsudoを外します。
 
 ## 2. Bashで実行する
 
@@ -65,13 +44,7 @@ bash ~/setup-remote-bash.sh && exec bash -l
 
 設定は `${XDG_CONFIG_HOME:-$HOME/.config}/bash/` に配置され、既存の `.bashrc` に読込み行が追加されます。次回のBash起動からは自動で有効になります。
 
-`setup.sh` が次のツールをインストールします。導入済みの環境でも、最新版に更新して再実行すれば追加されます。
-
-```bash
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/bash"
-curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/dot_config/bash/setup.sh -o "$config_dir/setup.sh" &&
-  bash "$config_dir/setup.sh"
-```
+`setup.sh` が次のツールをインストールします。導入済みの環境でも、上の一コマンドで設定を更新し、不足するツールを追加できます。
 
 | ツール | 用途 |
 | --- | --- |
