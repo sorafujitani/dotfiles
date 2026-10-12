@@ -1,0 +1,52 @@
+#!/bin/bash
+# Update installed agent CLIs using their own updaters.
+set -u
+
+dry_run=false
+case "${1:-}" in
+  "") ;;
+  --dry-run) dry_run=true ;;
+  -h|--help)
+    printf 'Usage: update-agents [--dry-run]\nUpdates installed claude, codex, pi, opencode, and grok CLIs.\n'
+    exit 0
+    ;;
+  *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac
+if [ "$#" -gt 1 ]; then
+  printf 'Usage: update-agents [--dry-run]\n' >&2
+  exit 2
+fi
+
+failed=0
+for agent in claude codex pi opencode grok; do
+  if ! command -v "$agent" >/dev/null 2>&1; then
+    printf '[SKIP] %s: not installed\n' "$agent"
+    continue
+  fi
+
+  case "$agent" in
+    claude|codex|grok) set -- "$agent" update ;;
+    # Do not update extensions or trust project-local configuration.
+    pi) set -- pi update --self --no-approve ;;
+    # Let OpenCode detect its install method (including Homebrew).
+    opencode) set -- opencode upgrade ;;
+  esac
+
+  printf '\n[UPDATE]'
+  printf ' %s' "$@"
+  printf '\n'
+  if [ "$dry_run" = true ]; then
+    continue
+  fi
+  if "$@"; then
+    printf '[OK] %s\n' "$agent"
+  else
+    printf '[FAIL] %s\n' "$agent" >&2
+    failed=$((failed + 1))
+  fi
+done
+
+if [ "$failed" -gt 0 ]; then
+  printf '\n%d update(s) failed.\n' "$failed" >&2
+  exit 1
+fi
