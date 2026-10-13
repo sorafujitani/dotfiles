@@ -53,6 +53,14 @@ sh scripts/update-agents
 
 Bashの導入は [bash/README.md](bash/README.md) を参照してください。
 
+Codexのモデル・sandbox・承認設定だけを別のマシンへ移植する場合は、[codex/README.md](codex/README.md) のダウンロードコマンドを使ってください。
+
+設定したいマシンで次を実行します。
+
+```sh
+curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/codex/install.sh -o "$HOME/setup-codex.sh" && sh "$HOME/setup-codex.sh" --download
+```
+
 ## 注意
 
 設定内のパスや依存ツールは、利用環境に合わせて確認してください。`claude/skills/difit`と`difit-review`は外部の`~/.agents/skills/`を参照するリンクです。利用する場合は、リンク先のスキルが別途必要です。
