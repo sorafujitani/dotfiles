@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euo pipefail
+
+if [[ $# -ne 1 || -z $1 ]]; then
+  printf 'Usage: isukey-set {filepath}\n' >&2
+  exit 1
+fi
+
+filepath=$1
+case "$filepath" in
+  *$'\n'*|*$'\r'*|*'"'*|*'\\'*)
+    printf 'Error: filepath contains unsupported characters\n' >&2
+    exit 1
+    ;;
+  '~/'*) filepath="$HOME/${filepath:2}" ;;
+  /*) ;;
+  *) filepath="$PWD/$filepath" ;;
+esac
+
+if [[ ! -f "$filepath" || ! -r "$filepath" ]]; then
+  printf 'Error: file is not readable: %s\n' "$filepath" >&2
+  exit 1
+fi
+
+if [[ ! -f "$HOME/.ssh/github_accuess" || ! -r "$HOME/.ssh/github_accuess" ]]; then
+  printf 'Error: private key is not readable: %s\n' "$HOME/.ssh/github_accuess" >&2
+  exit 1
+fi
+
+config="$HOME/.ssh/config"
+mkdir -p "$HOME/.ssh"
+umask 077
+tmp=$(mktemp "$HOME/.ssh/config.isukey-set.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+
+awk '
+  tolower($1) == "identityfile" && $2 == "~/.ssh/id_ed25519" {
+    sub(/~\/\.ssh\/id_ed25519/, "~/.ssh/github_accuess")
+  }
+  { print }
+' "$filepath" > "$tmp"
+if ! cmp -s "$tmp" "$filepath"; then
+  cat "$tmp" > "$filepath"
+  printf 'Updated %s: IdentityFile ~/.ssh/github_accuess\n' "$filepath"
+fi
+
+printf 'Include "%s"\n' "$filepath" > "$tmp"
+if [[ -f "$config" ]]; then
+  ISU_HOME="$HOME" awk '
+    {
+      line = $0
+      sub(/^[ \t]*/, "", line)
+      if (tolower(line) ~ /^include[ \t]+/) {
+        sub(/^[^ \t]+[ \t]+/, "", line)
+        sub(/^"/, "", line)
+        if (index(line, "~/.ssh/prox-isu-portal/") == 1 ||
+            index(line, ENVIRON["ISU_HOME"] "/.ssh/prox-isu-portal/") == 1)
+          next
+      }
+      print
+    }
+  ' "$config" >> "$tmp"
+fi
+
+cat "$tmp" > "$config"
+printf 'Updated %s: Include "%s"\n' "$config" "$filepath"
