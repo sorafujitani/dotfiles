@@ -53,7 +53,7 @@ sh scripts/update-agents
 
 Bashの導入は [bash/README.md](bash/README.md) を参照してください。
 
-Codexのモデル・sandbox・承認設定だけを別のマシンへ移植する場合は、[codex/README.md](codex/README.md) のダウンロードコマンドを使ってください。
+Codexのモデル・sandbox・承認設定と `sorafujitani/skills` のAgent Skillsを別のマシンへ導入する場合は、[codex/README.md](codex/README.md) のダウンロードコマンドを使ってください。
 
 設定したいマシンで次を実行します。
 

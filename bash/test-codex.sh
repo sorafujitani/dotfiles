@@ -24,6 +24,10 @@ for machine in x86_64 amd64 aarch64 arm64; do
         esac
         shift
       done
+      if [[ $url == https://raw.githubusercontent.com/sorafujitani/dotfiles/main/codex/install.sh ]]; then
+        printf '#!/bin/sh\n[ "$1" = --skills-only ] || exit 2\nprintf "installed\\n" > "$HOME/skills-installed"\n' > "$output"
+        return
+      fi
       case "$machine" in
         x86_64|amd64) expected=x86_64 ;;
         aarch64|arm64) expected=aarch64 ;;
@@ -37,13 +41,33 @@ for machine in x86_64 amd64 aarch64 arm64; do
     source "$test_tmp/install.sh"
     [[ -x $HOME/.local/bin/codex ]]
     [[ $(codex --version) == 'codex-cli test' ]]
+    [[ -f $HOME/skills-installed ]]
     [[ -z $(ls -A "$TMPDIR") ]]
 
-    # Installed commands must be preserved without downloading again.
+    # Preserve the binary, but still install/update skills on repeated setup.
     printf '#!/bin/sh\necho "existing codex"\n' > "$HOME/.local/bin/codex"
-    curl() { printf '%s\n' 'Unexpected download' >&2; return 1; }
+    rm "$HOME/skills-installed"
+    curl() {
+      local url output
+      while (( $# )); do
+        case "$1" in
+          https://*) url=$1 ;;
+          --output) shift; output=$1 ;;
+        esac
+        shift
+      done
+      [[ $url == https://raw.githubusercontent.com/sorafujitani/dotfiles/main/codex/install.sh ]]
+      printf '#!/bin/sh\n[ "$1" = --skills-only ] || exit 2\ntouch "$HOME/skills-installed"\n' > "$output"
+    }
     source "$test_tmp/install.sh"
     [[ $(codex --version) == 'existing codex' ]]
+    [[ -f $HOME/skills-installed ]]
+    [[ -z $(ls -A "$TMPDIR") ]]
+    curl() { return 22; }
+    export -f curl
+    if bash -e "$test_tmp/install.sh"; then exit 1; fi
+    [[ $(codex --version) == 'existing codex' ]]
+    [[ -z $(ls -A "$TMPDIR") ]]
   )
 done
 

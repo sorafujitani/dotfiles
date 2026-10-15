@@ -80,14 +80,14 @@ herdr --version
 
 # Install Codex for the current user without Node.js; preserve existing commands.
 (
+  codex_tmp=$(mktemp -d)
+  trap 'rm -rf -- "$codex_tmp"' EXIT
   if ! command -v codex >/dev/null 2>&1; then
     case "$(uname -m)" in
       x86_64|amd64) arch=x86_64 ;;
       aarch64|arm64) arch=aarch64 ;;
       *) printf 'Unsupported Codex architecture: %s\n' "$(uname -m)" >&2; exit 1 ;;
     esac
-    codex_tmp=$(mktemp -d)
-    trap 'rm -rf -- "$codex_tmp"' EXIT
     binary="codex-${arch}-unknown-linux-musl"
     curl --fail --location --retry 2 --connect-timeout 15 --max-time 120 \
       "https://github.com/openai/codex/releases/download/rust-v0.162.1/$binary.tar.gz" \
@@ -97,6 +97,10 @@ herdr --version
     install -m 755 "$codex_tmp/$binary" "$HOME/.local/bin/codex"
   fi
   codex --version
+  curl --fail --location --retry 2 --connect-timeout 15 --max-time 120 \
+    https://raw.githubusercontent.com/sorafujitani/dotfiles/main/codex/install.sh \
+    --output "$codex_tmp/install.sh"
+  sh "$codex_tmp/install.sh" --skills-only
 )
 
 # Install pprotein and its log analyzers; leave existing commands untouched.

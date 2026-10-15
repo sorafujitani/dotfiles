@@ -172,3 +172,11 @@ Go アプリの計測には、対象アプリ自身に pprof または pprotein 
 起動した本体・agent は、それぞれの端末で `Ctrl + C` を押すと停止します。
 
 公式: https://github.com/kaz/pprotein
+
+## CodexとAgent Skills
+
+セットアップはCodex本体に加え、`sorafujitani/skills` の公開スキルを導入します。Codexが導入済みでもスキルを更新します。スキルの実体は `~/ghq/github.com/sorafujitani/skills`、リンク先は `~/.agents/skills` です。既存の同名スキルは保持します。
+
+Codexのモデルや権限設定は変更しません。設定の移植・スキルだけの更新・競合時の扱いは [codex/README.md](../codex/README.md) を参照してください。導入後はCodexを起動し直し、`/skills` または `$private-isu-tuning` で確認できます。
+
+公開元: https://github.com/sorafujitani/skills
