@@ -16,13 +16,15 @@ default_permissions = ":danger-full-access"
 
 ## 別のマシンへ適用する
 
-設定したいマシンで次の1コマンドを実行します。curlとgitが必要です。Linux・macOSで使えます。
+Ubuntu / DebianでVim・Bash・Codex本体と設定・公開スキルをまとめて導入する場合は、[一括導入の手順](../bash/README.md#vmで導入更新する)を使います。旧方式の実行ファイルだけが入っている場合も、公式の完全パッケージへ更新します。
+
+設定とスキルだけを適用する場合は、次の1コマンドを実行します。curlとgitが必要です。Linux・macOSで使えます。
 
 ```sh
 curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/codex/install.sh -o "$HOME/setup-codex.sh" && sh "$HOME/setup-codex.sh" --download
 ```
 
-スクリプトがGitHub上のdotfilesから `config.toml` をダウンロードし、`${CODEX_HOME:-$HOME/.codex}/config.toml` へ配置します。あわせて `sorafujitani/skills` の `main` を取得し、Agent Skillsを導入します。取得に失敗した場合は既存の `config.toml` を変更しません。初回導入も更新も同じコマンドです。このコマンドはCodex本体をインストールしません。
+スクリプトがGitHub上のdotfilesから `config.toml` をダウンロードし、`${CODEX_HOME:-$HOME/.codex}/config.toml` へ配置します。あわせて `sorafujitani/skills` の `main` を取得し、Agent Skillsを導入します。取得に失敗した場合は既存の `config.toml` を変更しません。初回導入と更新は同じコマンドを使います。このコマンドはCodex本体をインストールしません。
 
 既存の設定は `config.toml.dotfiles-backup.日時.プロセス番号` に退避します。設定が同じ内容なら設定ファイルは変更せず、スキルの更新だけ行います。設定の一部をマージする処理ではないため、移植先の独自設定が必要なら退避ファイルを参照して追記してください。
 
@@ -55,7 +57,7 @@ CLIの `-c`・`--sandbox`・`--ask-for-approval`、設定プロファイル、�
 
 公開元: https://github.com/sorafujitani/skills
 
-実体は `~/ghq/github.com/sorafujitani/skills` にcloneし、直下に `SKILL.md` がある各ディレクトリを `~/.agents/skills/<名前>` へリンクします。`CODEX_HOME` を変更していても、共有スキルの配置先は `~/.agents/skills` です。ローカルだけの未公開スキルは対象になりません。
+スキルの実体は `~/ghq/github.com/sorafujitani/skills` にcloneします。直下に `SKILL.md` がある各ディレクトリを `~/.agents/skills/<名前>` へリンクします。`CODEX_HOME` を変更していても、共有スキルの配置先は `~/.agents/skills` です。ローカルだけの未公開スキルは対象になりません。
 
 再実行すると `main` をfast-forwardで更新します。既存checkoutの変更・独自コミット・別ブランチがある場合は停止し、手動での整理を求めます。同名の既存スキル（`${CODEX_HOME:-$HOME/.codex}/skills` 内も含む）は上書きせず、`[SKIP]` と表示します。
 

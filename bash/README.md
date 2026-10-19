@@ -1,26 +1,18 @@
-# Bashの補完・履歴を設定する
+# Vim・Bash・Codexをまとめて導入する
 
 Ubuntu / DebianのBash 4以上、curl、rootまたはsudo権限が必要です。
 
-## VMで更新する（導入済みの場合）
+## VMで導入・更新する
 
-SSH先で普段のユーザーとして実行します。
-
-**Vim の更新**
-
-```bash
-curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/vim/.vimrc -o "$HOME/.vimrc"
-```
-
-Vim を開き直して反映します。権限エラーの対処は「4. Vim の設定を更新する」を参照してください。
-
-**Bash・補完・ツールの更新**
+SSH先で普段のユーザーとして実行します。初回導入と更新は同じコマンドを使います。sudoを付けて実行すると、rootのホームに設定が入ります。
 
 ```bash
 curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/bash/install.sh -o "$HOME/setup-remote-bash.sh" && bash "$HOME/setup-remote-bash.sh" && exec bash -l
 ```
 
-fzf.vim の導入・更新は Bash のセットアップで行います。Vim でも使う場合は上の両方を実行してください。
+この1コマンドで、Vim本体と設定・fzfプラグイン、Bashの補完・履歴、Codex本体と共通設定・公開スキル、下表のツールを導入します。Vimは開き直すと反映されます。
+
+**Codexの権限設定も変更します。** `codex/config.toml` のモデル・推論・権限を適用し、承認は `never`、サンドボックスは `danger-full-access` になります。認証情報と既存のhooksは変更しません。認証は導入後に `codex login --device-auth` で行います。
 
 ## 1. 導入スクリプトを保存する
 
@@ -32,7 +24,9 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/bash/insta
 
 普段のユーザーとして実行してください。パッケージの導入時にsudoを使います。設定だけでなく、下表のツールもインストールします。
 
-既存の `interactive.bash` と `setup.sh` は、同じディレクトリの `.backup.*` ファイルに退避してから更新します。ダウンロードに失敗した場合は、設定を置き換えずに終了します。
+変更する設定ファイルは先にすべてダウンロードします。取得に失敗した場合、既存設定は変更しません。Bash設定と `~/.vimrc` は `.backup.*`、Codex設定は `.dotfiles-backup.*` に退避してから更新します。同じ内容なら退避・更新を省略します。
+
+設定ファイルの配置とBashの読込み設定は、ツールの導入より先に行います。途中で失敗した場合は処理名とエラーを表示し、適用済みの変更は残します。最後の成功表示がなければ導入は未完了です。原因を解消して同じコマンドを再実行してください。Bashの読込み設定まで完了していれば、`exec bash -l` で設定を反映できます。
 
 curlがない場合は、先に `sudo apt-get update && sudo apt-get install -y curl ca-certificates` を実行してください。rootの場合はsudoを外します。
 
@@ -115,7 +109,7 @@ fzf 連携の公式説明: https://github.com/akinomyoga/blesh-contrib/blob/mast
 
 挿入モードで `()`・`[]`・`{}`・ダブルクォート・シングルクォート・バッククォートを自動補完します。閉じ文字の入力で次へ進み、空のペアは `Backspace` でまとめて削除できます。
 
-Bash のセットアップでは vimrc は更新されません。SSH先で普段のユーザーとして実行してください。
+一括導入では `~/.vimrc` も退避して更新します。以下はVim設定だけを手動で更新する場合の手順です。SSH先で普段のユーザーとして実行してください。
 
 ```bash
 curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/vim/.vimrc -o "$HOME/.vimrc"
@@ -175,8 +169,14 @@ Go アプリの計測には、対象アプリ自身に pprof または pprotein 
 
 ## CodexとAgent Skills
 
-セットアップはCodex本体に加え、`sorafujitani/skills` の公開スキルを導入します。Codexが導入済みでもスキルを更新します。スキルの実体は `~/ghq/github.com/sorafujitani/skills`、リンク先は `~/.agents/skills` です。既存の同名スキルは保持します。
+セットアップは公式インストーラーでCodexの完全パッケージを導入します。実行ファイルだけを置く旧方式は使いません。再実行すると、導入済みでも公式インストーラーで更新・修復します。通常の `codex` で起動でき、`--no-daemon` による回避は不要です。
 
-Codexのモデルや権限設定は変更しません。設定の移植・スキルだけの更新・競合時の扱いは [codex/README.md](../codex/README.md) を参照してください。導入後はCodexを起動し直し、`/skills` または `$private-isu-tuning` で確認できます。
+コマンドは `~/.local/bin/codex`、パッケージは `${CODEX_HOME:-$HOME/.codex}/packages/standalone` に配置します。Bashでは `~/.local/bin` を優先し、古いシステム側のCodexが選ばれるのを防ぎます。導入後にバージョンとデーモン用パッケージの所有権を検査します。
+
+一括導入では `${CODEX_HOME:-$HOME/.codex}/config.toml` も更新します。PC固有の `AGENTS.md`、hooks、認証情報は転送しません。設定の詳細・スキルだけの更新・競合時の扱いは [codex/README.md](../codex/README.md) を参照してください。
+
+公開スキルの実体は `~/ghq/github.com/sorafujitani/skills`、リンク先は `~/.agents/skills` です。既存の同名スキルは保持します。Codexを起動し直し、`/skills` または `$private-isu-tuning` で確認できます。
+
+公式インストーラー: https://chatgpt.com/codex/install.sh
 
 公開元: https://github.com/sorafujitani/skills

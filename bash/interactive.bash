@@ -3,10 +3,8 @@
 [[ ${_DOTFILES_BASH_LOADED-} == "$$" ]] && return 0
 _DOTFILES_BASH_LOADED=$$
 
-case ":$PATH:" in
-  *":$HOME/.local/bin:"*) ;;
-  *) export PATH="$HOME/.local/bin:$PATH" ;;
-esac
+# Prefer the packaged Codex command over older system/npm installations.
+[[ $PATH == "$HOME/.local/bin" || $PATH == "$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
 
 HISTSIZE=20000
 HISTFILESIZE=100000
