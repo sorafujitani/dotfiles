@@ -22,7 +22,7 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/bash/insta
 curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/bash/install.sh -o "$HOME/setup-remote-bash.sh" && bash "$HOME/setup-remote-bash.sh" && exec bash -l
 ```
 
-普段のユーザーとして実行してください。パッケージの導入時にsudoを使います。設定だけでなく、下表のツールもインストールします。
+普段のユーザーとして実行してください。パッケージの導入とroot側のVim設定にsudoを使います。設定だけでなく、下表のツールもインストールします。
 
 変更する設定ファイルは先にすべてダウンロードします。取得に失敗した場合、既存設定は変更しません。Bash設定と `~/.vimrc` は `.backup.*`、Codex設定は `.dotfiles-backup.*` に退避してから更新します。同じ内容なら退避・更新を省略します。
 
@@ -91,7 +91,13 @@ fzf 連携の公式説明: https://github.com/akinomyoga/blesh-contrib/blob/mast
 
 ## 4. Vim の設定を更新する
 
-セットアップで fzf.vim と対応版 fzf を `~/.vim/dotfiles` に導入します。Vim を開き直すと使えます。`sudo vim` でも、普段のユーザーの vimrc を読み込む設定なら利用できます。
+セットアップで fzf.vim と対応版 fzf を `~/.vim/dotfiles` に導入します。Vimを開き直すと使えます。`sudo vim` でも同じ構文ハイライト・配色・キーマップ・プラグインを読み込みます。
+
+root側の既存vimrcを `.before-dotfiles-sudo-vim.*` に退避し、内容を残したまま末尾に読込み処理を追加します。`~/.vimrc` がない場合、既存の `~/.vim/vimrc` へ追加します。再実行しても読込み行は重複しません。
+
+`sudo vim` の起動時に `SUDO_USER` から呼出し元のホームを取得し、その `.vimrc` を読み込みます。複数ユーザーでも各自の設定を使います。sudoを経由しないrootのVimでは、この読込み処理は動きません。
+
+**ユーザーのVim設定とプラグインがroot権限で実行されます。** 管理者が信頼する設定だけを使ってください。
 
 | キー | 検索対象 |
 | --- | --- |
@@ -124,7 +130,7 @@ curl -fL https://raw.githubusercontent.com/sorafujitani/dotfiles/main/vim/.vimrc
 ```
 
 Vim を開き直すか、開いている Vim で `:source ~/.vimrc` を実行すると反映されます。
-`sudo vim` の場合は `:source /home/isucon/.vimrc` のように、普段のユーザーのパスを指定してください。
+一括導入済みなら、`sudo vim` も開き直すだけで反映されます。手動の `:source` は不要です。
 
 ## 5. pprotein で性能を調べる
 

@@ -14,7 +14,7 @@ export PATH="$test_dir/bin:$PATH"
 
 printf '#!/bin/sh\necho "${TEST_OS:-Linux}"\n' > "$test_dir/bin/uname"
 printf '#!/bin/sh\nexit 99\n' > "$test_dir/bin/apt-get"
-printf '#!/bin/sh\nexec "$@"\n' > "$test_dir/bin/sudo"
+printf '#!/bin/sh\n[ "${1-}" != -H ] || shift\nexec "$@"\n' > "$test_dir/bin/sudo"
 cat > "$test_dir/bin/curl" <<'MOCK'
 #!/usr/bin/env bash
 set -eu
@@ -33,6 +33,8 @@ case "$file" in
       printf 'printf "setup ran\\n" > "$HOME/setup-ran"\nexit "${SETUP_STATUS:-0}"\n' > "$output"
     fi
     ;;
+  bash/setup-root-vim.sh) printf '[ -s "$1" ] || exit 1\nprintf "root setup ran\\n" > "$HOME/root-vim-setup-ran"\n' > "$output" ;;
+  vim/sudo.vim) cp "$TEST_SOURCE_DIR/vim/sudo.vim" "$output" ;;
   vim/.vimrc) printf 'set number\n' > "$output" ;;
   codex/install.sh) cp "$TEST_SOURCE_DIR/codex/install.sh" "$output" ;;
   codex/config.toml) cp "$TEST_SOURCE_DIR/codex/config.toml" "$output" ;;
@@ -61,6 +63,7 @@ cmp "$TEST_SOURCE_DIR/codex/config.toml" "$CODEX_HOME/config.toml"
 [[ $(< "$CODEX_HOME/auth.json") == 'keep auth' ]]
 [[ $(< "$CODEX_HOME/hooks.json") == 'keep hooks' ]]
 [[ -f $HOME/setup-ran ]]
+[[ -f $HOME/root-vim-setup-ran ]]
 backups=("$HOME"/.vimrc.backup.*)
 [[ ${#backups[@]} == 1 && $(< "${backups[0]}") == 'old vim config' ]]
 backups=("$CODEX_HOME"/config.toml.dotfiles-backup.*)
@@ -101,7 +104,7 @@ fi
 # Run the actual setup: a tool failure must not prevent Bash activation.
 printf '# keep bashrc\n' > "$HOME/.bashrc"
 printf '# keep profile\n' > "$HOME/.profile"
-for attempt in 1 2; do
+for _attempt in 1 2; do
   if REAL_SETUP=1 bash "$script_dir/install.sh" > "$test_dir/failure.log" 2>&1; then
     exit 1
   else
