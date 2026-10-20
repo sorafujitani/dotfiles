@@ -7,37 +7,87 @@ let mapleader = ' '
 filetype plugin indent on
 syntax enable
 
-" Load plugins beside this vimrc, including when root sources the user's vimrc.
+" Vendored plugins beside this vimrc, then the fzf binary's own Vim plugin.
 let s:plugin_dir = expand('<sfile>:p:h') . '/.vim/dotfiles'
-let s:fzf_dir = s:plugin_dir . '/fzf-v0.65.2'
-let s:fzf_vim_dir = s:plugin_dir . '/fzf.vim-8a006812'
-if filereadable(s:fzf_dir . '/plugin/fzf.vim') && filereadable(s:fzf_vim_dir . '/plugin/fzf.vim')
-  for s:dir in [s:fzf_dir, s:fzf_vim_dir]
-    if index(split(&runtimepath, ','), s:dir) < 0
-      let &runtimepath .= ',' . escape(s:dir, ',')
-    endif
-    execute 'source ' . fnameescape(s:dir . '/plugin/fzf.vim')
+function! s:AddRuntime(dir) abort
+  if empty(a:dir) || !isdirectory(a:dir)
+    return 0
+  endif
+  let dir = substitute(fnamemodify(a:dir, ':p'), '[\\/]$', '', '')
+  if index(split(&runtimepath, ','), dir) < 0
+    let &runtimepath .= ',' . escape(dir, ',')
+  endif
+  let plugin = dir . '/plugin/fzf.vim'
+  if filereadable(plugin)
+    execute 'source' fnameescape(plugin)
+  endif
+  return 1
+endfunction
+if isdirectory(s:plugin_dir)
+  for s:dir in [s:plugin_dir . '/fzf-v0.65.2', s:plugin_dir . '/fzf.vim-8a006812']
+        \ + glob(s:plugin_dir . '/*', 1, 1)
+    call s:AddRuntime(s:dir)
   endfor
+endif
+if !exists('*fzf#run') && executable('fzf')
+  let s:fzf_root = fnamemodify(exepath('fzf'), ':h:h')
+  for s:dir in [
+        \ s:fzf_root . '/share/vim-plugins/fzf',
+        \ s:fzf_root . '/share/fzf',
+        \ s:fzf_root . '/plugin',
+        \ expand('~/.fzf'),
+        \ '/opt/homebrew/opt/fzf',
+        \ '/usr/local/opt/fzf',
+        \ ]
+    if s:AddRuntime(s:dir) && exists('*fzf#run')
+      break
+    endif
+  endfor
+endif
+if exists('*fzf#run')
+  let g:fzf_layout = get(g:, 'fzf_layout', {'down': '40%'})
   let g:fzf_vim = get(g:, 'fzf_vim', {})
-  let g:fzf_vim.preview_window = []
+  let g:fzf_vim.preview_window = get(g:fzf_vim, 'preview_window', [])
 endif
 
 set encoding=utf-8
 set fileencoding=utf-8
-set noswapfile hidden autoread
+set noswapfile hidden autoread confirm
 set synmaxcol=300 updatetime=250
 set helplang=ja
 set number relativenumber nowrap showmatch
-set shiftwidth=2 tabstop=2 expandtab autoindent smartindent
+set shiftwidth=2 tabstop=2 softtabstop=-1 expandtab autoindent smartindent smarttab shiftround
 set backspace=indent,eol,start
-set hlsearch incsearch matchtime=1
-set timeoutlen=300
+set hlsearch incsearch ignorecase smartcase matchtime=1
+set timeout ttimeout timeoutlen=300 ttimeoutlen=10
 set wildmenu
 set wildmode=longest:full,full
+set wildignore+=.git/,node_modules/,.DS_Store,*.o,*.pyc,__pycache__/
 set laststatus=2
+set statusline=%<%f\ %h%m%r%=%l:%c\ %P
 set background=dark
+set splitright splitbelow
+set scrolloff=4 sidescrolloff=8
+set belloff=all
+set display=lastline
+set history=10000
+set complete-=i
+set nrformats-=octal
+set formatoptions+=j
+set formatoptions-=o
+set completeopt=menuone,noselect
+set clipboard=
+let g:netrw_banner = 0
+let g:netrw_liststyle = 3
 if exists('+mouse')
   set mouse=a
+endif
+if exists('+ttymouse')
+  if has('mouse_sgr')
+    set ttymouse=sgr
+  else
+    set ttymouse=xterm2
+  endif
 endif
 if exists('+signcolumn')
   set signcolumn=yes
@@ -45,6 +95,23 @@ endif
 if exists('+termguicolors') && ($COLORTERM ==# 'truecolor' || $COLORTERM ==# '24bit')
   set termguicolors
 endif
+if has('persistent_undo')
+  let s:undo_dir = expand('~/.vim/undo')
+  if !isdirectory(s:undo_dir)
+    call mkdir(s:undo_dir, 'p', 0700)
+  endif
+  let &undodir = s:undo_dir
+  set undofile
+endif
+if executable('rg')
+  set grepprg=rg\ --vimgrep\ --smart-case\ --hidden\ --glob\ !.git
+  set grepformat=%f:%l:%c:%m
+endif
+silent! set wildoptions+=pum
+silent! set wildoptions+=fuzzy
+silent! set fillchars+=eob:\ 
+silent! set diffopt+=indent-heuristic,algorithm:histogram
+silent! set smoothscroll
 " Match Neovim's mode-dependent cursor shapes in terminals and GUI Vim.
 if exists('+guicursor')
   set guicursor=n-v-c:block,i-ci-ve:ver25,r-cr-o:hor20
@@ -124,7 +191,6 @@ endfunction
 call s:ApplyColors()
 
 " Keep deletes local; copy ordinary yanks through the terminal when using SSH.
-set clipboard=
 function! s:CopyYank() abort
   if v:event.operator !=# 'y' || v:event.regname ==# '_'
     return
@@ -339,6 +405,84 @@ function! s:MarkdownSetup() abort
   nnoremap <buffer> <silent> <leader>x :call <SID>ToggleTodo()<CR>
 endfunction
 
+function! s:FzfFiles() abort
+  let source = executable('rg')
+        \ ? 'rg --files --hidden --glob !.git --glob !node_modules'
+        \ : 'find . -type f'
+  call fzf#run(fzf#wrap('files', {'source': source, 'sink': 'e'}))
+endfunction
+
+function! s:FzfOldfiles() abort
+  let files = filter(map(copy(v:oldfiles), 'fnamemodify(expand(v:val), ":p")'), 'filereadable(v:val)')
+  call fzf#run(fzf#wrap('old', {'source': files, 'sink': 'e'}))
+endfunction
+
+function! s:FzfBuffers() abort
+  let items = []
+  for b in filter(range(1, bufnr('$')), 'buflisted(v:val)')
+    let name = bufname(b)
+    call add(items, printf('%3d %s', b, empty(name) ? '[No Name]' : fnamemodify(name, ':.')))
+  endfor
+  call fzf#run(fzf#wrap('buf', {'source': items, 'sink': function('s:FzfSinkBuffer')}))
+endfunction
+
+function! s:FzfSinkBuffer(line) abort
+  execute 'buffer' matchstr(a:line, '\d\+')
+endfunction
+
+function! s:FzfBLines() abort
+  let items = map(getline(1, '$'), 'printf("%4d %s", v:key + 1, v:val)')
+  call fzf#run(fzf#wrap('lines', {'source': items, 'sink': function('s:FzfSinkLine')}))
+endfunction
+
+function! s:FzfSinkLine(line) abort
+  execute matchstr(a:line, '\d\+')
+endfunction
+
+function! s:FzfCmdHist() abort
+  let items = []
+  for i in range(1, histnr(':'))
+    let cmd = histget(':', i)
+    if !empty(cmd)
+      call add(items, cmd)
+    endif
+  endfor
+  call fzf#run(fzf#wrap('cmd', {'source': reverse(items), 'sink': function('s:FzfSinkCmd')}))
+endfunction
+
+function! s:FzfSinkCmd(line) abort
+  call feedkeys(':' . a:line, 'n')
+endfunction
+
+function! s:FzfGrep(query, word) abort
+  let query = a:query
+  if empty(query)
+    let query = input('Search: ')
+  endif
+  if empty(query)
+    return
+  endif
+  if !executable('rg')
+    call s:Search(query, a:word)
+    return
+  endif
+  let cmd = 'rg --vimgrep --no-heading --color never --smart-case '
+        \ . (a:word ? '--word-regexp ' : '') . '-- ' . shellescape(query)
+  call fzf#run(fzf#wrap('grep', {
+        \ 'source': cmd,
+        \ 'sink': function('s:FzfGrepSink'),
+        \ }))
+endfunction
+
+function! s:FzfGrepSink(line) abort
+  let m = matchlist(a:line, '\v^(.{-}):(\d+):(\d+):(.*)$')
+  if empty(m)
+    return
+  endif
+  execute 'edit' fnameescape(m[1])
+  call cursor(str2nr(m[2]), str2nr(m[3]))
+endfunction
+
 nnoremap ; :
 inoremap <C-j> <Esc>
 " Evaluate after earlier typed characters have been inserted.
@@ -380,6 +524,14 @@ if exists(':Files') == 2
   nnoremap <silent> <leader>: :History:<CR>
   nnoremap <silent> <leader>fh :Helptags<CR>
   nnoremap <silent> <C-g> :RG<CR>
+elseif exists('*fzf#run')
+  nnoremap <silent> <C-p> :call <SID>FzfFiles()<CR>
+  nnoremap <silent> <C-l> :call <SID>FzfOldfiles()<CR>
+  nnoremap <silent> <C-b> :call <SID>FzfBuffers()<CR>
+  nnoremap <silent> <C-f> :call <SID>FzfBLines()<CR>
+  nnoremap <silent> <leader>: :call <SID>FzfCmdHist()<CR>
+  nnoremap <silent> <C-g> :call <SID>FzfGrep('', 0)<CR>
+  nnoremap <silent> <leader>sw :call <SID>FzfGrep(expand('<cword>'), 1)<CR>
 endif
 nnoremap <silent> gcc :<C-u>call <SID>ToggleComment(line('.'), line('.') + v:count1 - 1)<CR>
 xnoremap <silent> gc :<C-u>call <SID>ToggleComment(line("'<"), line("'>"))<CR>
@@ -394,6 +546,13 @@ augroup portable_vim
   autocmd FocusGained,BufEnter,CursorHold * if mode() !=# 'c' | checktime | endif
   autocmd ColorScheme * call <SID>ApplyColors()
   autocmd FileType markdown call <SID>MarkdownSetup()
+  autocmd FileType go,make setlocal noexpandtab tabstop=4 shiftwidth=4 softtabstop=0
+  autocmd FileType gitcommit setlocal spell textwidth=72
+  autocmd FileType qf nnoremap <buffer> <CR> <CR>
+  autocmd FileType help nnoremap <buffer> <CR> <C-]>
+  autocmd CmdwinEnter * nnoremap <buffer> <CR> <CR>
+  autocmd InsertEnter * setlocal cursorline
+  autocmd InsertLeave * setlocal nocursorline
   " Let fzf handle cancellation instead of entering Terminal-Normal mode.
   autocmd FileType fzf tnoremap <buffer> <Esc> <Esc>
   autocmd FileType fzf tnoremap <buffer> <C-c> <C-c>

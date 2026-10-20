@@ -74,8 +74,12 @@ local function setup_lsp()
 		"ruby_lsp",
 		"rfmt",
 		"gopls",
+		"hls",
+		"zls",
 		"ty",
 		"nil_ls",
+		"moonbit",
+		"marksman",
 	})
 end
 

@@ -1,0 +1,501 @@
+#!/usr/bin/env python3
+"""Safely find and remove disposable Git worktrees."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable
+
+
+GENERATED_PARTS = {
+    ".cache",
+    ".direnv",
+    ".gradle",
+    ".next",
+    ".nuxt",
+    ".output",
+    ".terraform",
+    ".turbo",
+    ".venv",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "target",
+    "tmp",
+    "venv",
+}
+
+DISCOVERY_PRUNE_PARTS = GENERATED_PARTS | {
+    ".git",
+    ".hg",
+    ".svn",
+    "Pods",
+    "vendor",
+}
+
+
+@dataclass(frozen=True)
+class Worktree:
+    repo: Path
+    path: Path
+    head: str
+    branch: str | None
+    locked: str | None
+    prunable: str | None
+    primary: bool
+
+
+@dataclass(frozen=True)
+class Verdict:
+    worktree: Worktree
+    safe: bool
+    reason: str
+    age_days: int | None = None
+
+
+def run(
+    args: list[str], *, cwd: Path | None = None, check: bool = False
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        args,
+        cwd=cwd,
+        check=check,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
+def discover_repositories(roots: Iterable[Path]) -> list[Path]:
+    repositories: set[Path] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for current, directories, files in os.walk(root):
+            if ".git" in directories:
+                repo = Path(current).resolve()
+                if (repo / ".git" / "worktrees").is_dir():
+                    repositories.add(repo)
+                # Some ghq owner directories are repositories themselves and
+                # contain normal child repositories, so keep walking below them.
+            if ".git" in files:
+                # A linked worktree is discovered through its primary repository.
+                directories[:] = []
+                continue
+            directories[:] = [
+                name for name in directories if name not in DISCOVERY_PRUNE_PARTS
+            ]
+    return sorted(repositories)
+
+
+def parse_worktrees(repo: Path) -> list[Worktree]:
+    result = run(["git", "worktree", "list", "--porcelain"], cwd=repo)
+    if result.returncode != 0:
+        return []
+
+    blocks: list[dict[str, str | bool]] = []
+    current: dict[str, str | bool] = {}
+    for line in [*result.stdout.splitlines(), ""]:
+        if not line:
+            if current:
+                blocks.append(current)
+                current = {}
+            continue
+        key, _, value = line.partition(" ")
+        current[key] = value if value else True
+
+    worktrees: list[Worktree] = []
+    for index, block in enumerate(blocks):
+        path = block.get("worktree")
+        head = block.get("HEAD")
+        if not isinstance(path, str) or not isinstance(head, str):
+            continue
+        branch = block.get("branch")
+        locked = block.get("locked")
+        prunable = block.get("prunable")
+        worktrees.append(
+            Worktree(
+                repo=repo,
+                path=Path(path),
+                head=head,
+                branch=branch.removeprefix("refs/heads/")
+                if isinstance(branch, str)
+                else None,
+                locked=locked if isinstance(locked, str) else "理由なし"
+                if locked
+                else None,
+                prunable=prunable if isinstance(prunable, str) else "理由なし"
+                if prunable
+                else None,
+                primary=index == 0,
+            )
+        )
+    return worktrees
+
+
+def default_ref(repo: Path) -> str | None:
+    symbolic = run(
+        ["git", "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"], cwd=repo
+    )
+    if symbolic.returncode == 0 and symbolic.stdout.strip():
+        return symbolic.stdout.strip()
+
+    for ref in (
+        "refs/remotes/origin/main",
+        "refs/remotes/origin/master",
+        "refs/heads/main",
+        "refs/heads/master",
+    ):
+        exists = run(["git", "show-ref", "--verify", "--quiet", ref], cwd=repo)
+        if exists.returncode == 0:
+            return ref
+    return None
+
+
+def path_is_within(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def active_cwds() -> set[Path]:
+    if not shutil.which("lsof"):
+        return set()
+    result = run(["lsof", "-a", "-d", "cwd", "-Fn"])
+    if result.returncode not in (0, 1):
+        return set()
+    return {
+        Path(line[1:])
+        for line in result.stdout.splitlines()
+        if line.startswith("n/")
+    }
+
+
+def docker_mount_sources() -> set[Path]:
+    if not shutil.which("docker"):
+        return set()
+    listed = run(["docker", "ps", "-q"])
+    container_ids = listed.stdout.split()
+    if listed.returncode != 0 or not container_ids:
+        return set()
+    inspected = run(["docker", "container", "inspect", *container_ids])
+    if inspected.returncode != 0:
+        return set()
+    try:
+        containers = json.loads(inspected.stdout)
+    except json.JSONDecodeError:
+        return set()
+    sources: set[Path] = set()
+    for container in containers:
+        for mount in container.get("Mounts", []):
+            source = mount.get("Source")
+            if isinstance(source, str) and source.startswith("/"):
+                sources.add(Path(source))
+    return sources
+
+
+def git_activity_age_days(worktree: Worktree) -> int | None:
+    git_dir_result = run(
+        ["git", "rev-parse", "--absolute-git-dir"], cwd=worktree.path
+    )
+    if git_dir_result.returncode != 0:
+        return None
+    git_dir = Path(git_dir_result.stdout.strip())
+    candidates = [
+        worktree.path / ".git",
+        git_dir / "HEAD",
+        git_dir / "index",
+        git_dir / "logs" / "HEAD",
+    ]
+    mtimes: list[float] = []
+    for candidate in candidates:
+        try:
+            mtimes.append(candidate.stat().st_mtime)
+        except OSError:
+            pass
+    if not mtimes:
+        return None
+    age_seconds = max(0.0, __import__("time").time() - max(mtimes))
+    return int(age_seconds // 86400)
+
+
+def ignored_local_paths(worktree: Worktree) -> list[str]:
+    result = run(
+        [
+            "git",
+            "ls-files",
+            "-z",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+        ],
+        cwd=worktree.path,
+    )
+    if result.returncode != 0:
+        return ["<ignored files could not be inspected>"]
+    protected: list[str] = []
+    for raw_path in filter(None, result.stdout.split("\0")):
+        path = Path(raw_path.rstrip("/"))
+        parts = set(path.parts)
+        name = path.name
+        generated = bool(parts & GENERATED_PARTS)
+        generated = generated or name == ".DS_Store" or name.endswith((".log", ".pyc"))
+        generated = generated or name == "result" or name.startswith("result-")
+        if not generated:
+            protected.append(raw_path)
+    return protected
+
+
+def classify(
+    worktree: Worktree,
+    *,
+    target_ref: str | None,
+    older_than: int,
+    cwd_paths: set[Path],
+    mount_sources: set[Path],
+) -> Verdict:
+    if worktree.primary:
+        return Verdict(worktree, False, "primary worktree")
+    if worktree.prunable or not worktree.path.exists():
+        return Verdict(worktree, False, "directory missing; metadata only")
+    if worktree.locked:
+        return Verdict(worktree, False, f"locked: {worktree.locked}")
+    if any(path_is_within(cwd, worktree.path) for cwd in cwd_paths):
+        return Verdict(worktree, False, "used as a running process cwd")
+    if any(path_is_within(source, worktree.path) for source in mount_sources):
+        return Verdict(worktree, False, "used by a running Docker bind mount")
+
+    status = run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=worktree.path,
+    )
+    if status.returncode != 0:
+        return Verdict(worktree, False, "git status failed")
+    if status.stdout:
+        return Verdict(worktree, False, "tracked or untracked changes exist")
+
+    protected_ignored = ignored_local_paths(worktree)
+    if protected_ignored:
+        preview = ", ".join(protected_ignored[:3])
+        suffix = " ..." if len(protected_ignored) > 3 else ""
+        return Verdict(worktree, False, f"protected ignored paths: {preview}{suffix}")
+
+    if not target_ref:
+        return Verdict(worktree, False, "default branch ref is unknown")
+    merged = run(
+        ["git", "merge-base", "--is-ancestor", worktree.head, target_ref],
+        cwd=worktree.repo,
+    )
+    if merged.returncode != 0:
+        return Verdict(worktree, False, f"HEAD is not included in {target_ref}")
+
+    age_days = git_activity_age_days(worktree)
+    if age_days is None:
+        return Verdict(worktree, False, "Git activity age is unknown")
+    if age_days < older_than:
+        return Verdict(
+            worktree,
+            False,
+            f"recent Git activity: {age_days}d < {older_than}d",
+            age_days,
+        )
+    return Verdict(
+        worktree,
+        True,
+        f"clean and included in {target_ref}",
+        age_days,
+    )
+
+
+def format_path(path: Path) -> str:
+    try:
+        return f"~/{path.resolve().relative_to(Path.home().resolve())}"
+    except (OSError, ValueError):
+        return str(path)
+
+
+def print_verdict(verdict: Verdict, label: str) -> None:
+    branch = verdict.worktree.branch or "detached"
+    age = f" age={verdict.age_days}d" if verdict.age_days is not None else ""
+    print(f"{label:<7} {format_path(verdict.worktree.path)}")
+    print(f"        branch={branch}{age} / {verdict.reason}")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Git worktreeを横断確認し、安全条件を満たすものだけを一括削除します。"
+            "デフォルトはdry-runです。"
+        )
+    )
+    parser.add_argument(
+        "--root",
+        action="append",
+        type=Path,
+        help="primary repositoryを検索するルート（複数指定可）",
+    )
+    parser.add_argument(
+        "--repo",
+        action="append",
+        type=Path,
+        default=[],
+        help="確認するprimary repositoryを直接指定（複数指定可）",
+    )
+    parser.add_argument(
+        "--older-than",
+        type=int,
+        default=7,
+        metavar="DAYS",
+        help="最後のGit活動からこの日数以上のものだけを候補にする（default: 7）",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="保護されて削除対象にならないworktreeも表示する",
+    )
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="既にdirectoryがないworktreeのGit metadataをpruneする",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="安全候補をgit worktree removeで削除する",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="--apply時の確認を省略する（安全条件の検査は省略しない）",
+    )
+    args = parser.parse_args()
+    if args.older_than < 0:
+        parser.error("--older-than must be zero or greater")
+    if args.yes and not args.apply:
+        parser.error("--yes requires --apply")
+    return args
+
+
+def main() -> int:
+    args = parse_args()
+    configured_roots = os.environ.get("WT_CLEAN_ROOTS")
+    if args.root:
+        roots = args.root
+    elif configured_roots:
+        roots = [Path(value) for value in configured_roots.split(os.pathsep) if value]
+    else:
+        roots = [Path.home() / "ghq"]
+
+    repositories = set(discover_repositories(roots))
+    for repo in args.repo:
+        repositories.add(repo.expanduser().resolve())
+    if not repositories:
+        print("worktreeを持つprimary repositoryが見つかりませんでした。")
+        return 0
+
+    cwd_paths = active_cwds()
+    mount_sources = docker_mount_sources()
+    verdicts: list[Verdict] = []
+    stale: list[Worktree] = []
+    repo_refs: dict[Path, str | None] = {}
+
+    for repo in sorted(repositories):
+        repo_refs[repo] = default_ref(repo)
+        for worktree in parse_worktrees(repo):
+            if worktree.primary:
+                continue
+            if worktree.prunable or not worktree.path.exists():
+                stale.append(worktree)
+                continue
+            verdicts.append(
+                classify(
+                    worktree,
+                    target_ref=repo_refs[repo],
+                    older_than=args.older_than,
+                    cwd_paths=cwd_paths,
+                    mount_sources=mount_sources,
+                )
+            )
+
+    safe = [verdict for verdict in verdicts if verdict.safe]
+    blocked = [verdict for verdict in verdicts if not verdict.safe]
+
+    print(f"安全に削除可能: {len(safe)}")
+    for verdict in safe:
+        print_verdict(verdict, "SAFE")
+    print(f"保護: {len(blocked)} / metadataのみ: {len(stale)}")
+    if args.all:
+        for verdict in blocked:
+            print_verdict(verdict, "BLOCKED")
+        for worktree in stale:
+            print(f"STALE   {format_path(worktree.path)}")
+            print(f"        repo={format_path(worktree.repo)} / {worktree.prunable or 'missing'}")
+
+    if args.prune:
+        for repo in sorted({worktree.repo for worktree in stale}):
+            result = run(["git", "worktree", "prune", "--verbose"], cwd=repo)
+            if result.returncode != 0:
+                print(f"PRUNE失敗 {format_path(repo)}: {result.stderr.strip()}", file=sys.stderr)
+
+    if not args.apply:
+        print("dry-run: 実際に削除するには --apply を付けて再実行してください。")
+        return 0
+    if not safe:
+        print("削除対象はありません。")
+        return 0
+
+    expected = f"remove {len(safe)}"
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("対話端末ではありません。自動実行する場合は --yes が必要です。", file=sys.stderr)
+            return 2
+        print("branchは削除しません。ignoredな生成物はworktreeと一緒に削除されます。")
+        answer = input(f"{len(safe)}件を削除するには '{expected}' と入力: ")
+        if answer != expected:
+            print("キャンセルしました。")
+            return 1
+
+    failures = 0
+    for verdict in safe:
+        # Re-check mutable safety conditions immediately before removal.
+        refreshed = classify(
+            verdict.worktree,
+            target_ref=repo_refs[verdict.worktree.repo],
+            older_than=args.older_than,
+            cwd_paths=active_cwds(),
+            mount_sources=docker_mount_sources(),
+        )
+        if not refreshed.safe:
+            failures += 1
+            print(f"SKIP    {format_path(verdict.worktree.path)} / {refreshed.reason}")
+            continue
+        removed = run(
+            ["git", "worktree", "remove", "--", str(verdict.worktree.path)],
+            cwd=verdict.worktree.repo,
+        )
+        if removed.returncode == 0:
+            print(f"REMOVED {format_path(verdict.worktree.path)}")
+        else:
+            failures += 1
+            print(
+                f"FAILED  {format_path(verdict.worktree.path)} / {removed.stderr.strip()}",
+                file=sys.stderr,
+            )
+
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

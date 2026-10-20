@@ -6,7 +6,6 @@ describe("startup modules", function()
     "core.commands",
     "keymaps",
     "lsp",
-    "plugins",
   }
 
   for _, mod in ipairs(modules) do

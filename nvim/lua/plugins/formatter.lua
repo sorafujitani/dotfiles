@@ -4,6 +4,7 @@ require("conform").setup({
 		lua = { "stylua" },
 		python = { "isort", "black" },
 		rust = { "rustfmt", lsp_format = "fallback" },
+		haskell = { "ormolu", lsp_format = "fallback" },
 		javascript = { "biome", "prettierd", "prettier", stop_after_first = true },
 		sh = { "shfmt" },
 		go = { "gofumpt", "goimports", lsp_format = "fallback" },

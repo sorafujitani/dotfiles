@@ -1,6 +1,19 @@
 { config, lib, pkgs, ... }:
 
 let
+  # native extension の gem build に nix の clang/llvm が要るが、PATH 全体に出すと
+  # 他言語のビルドに波及するので ruby プロセス内だけに閉じる
+  rubyWithBuildTools = pkgs.symlinkJoin {
+    name = "ruby-with-build-tools";
+    paths = [ pkgs.ruby_4_0 ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      for b in $out/bin/*; do
+        wrapProgram "$b" --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.clang pkgs.llvm ]}
+      done
+    '';
+  };
+
   codexAgentCliTools = [
     (pkgs.writeShellScriptBin "linearx" ''
       set -euo pipefail
@@ -324,23 +337,59 @@ in
 
   programs.home-manager.enable = true;
 
+  programs.nh = {
+    enable = true;
+    clean = {
+      enable = true;
+      dates = "weekly";
+      extraArgs = "--keep-since=30d";
+    };
+  };
+
+  # launchd の既定環境には Nix の PATH とユーザー情報がなく、nh clean が終了 1 になる。
+  launchd.agents.nh-clean.config.EnvironmentVariables = {
+    HOME = config.home.homeDirectory;
+    USER = config.home.username;
+    PATH = "${config.home.profileDirectory}/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+  };
+
   programs.lazygit = {
     enable = true;
     settings = {
-      activeBorderColor = [ "cyan" "bold" ];
-      inactiveBorderColor = [ "default" ];
-      searchingActiveBorderColor = [ "cyan" "bold" ];
-      optionsTextColor = [ "blue" ];
-      selectedLineBgColor = [ "reverse" ];
-      inactiveViewSelectedLineBgColor = [ "default" ];
-      cherryPickedCommitFgColor = [ "blue" ];
-      cherryPickedCommitBgColor = [ "cyan" ];
-      markedBaseCommitFgColor = [ "blue" ];
-      markedBaseCommitBgColor = [ "yellow" ];
-      unstagedChangesColor = [ "red" ];
-      defaultFgColor = [ "default" ];
       gui = {
         nerdFontsVersion = "3";
+        showIcons = true;
+        authorColors = {
+          "fujitani sora" = "#c792ea";
+          "shoya yarimizu" = "#82aaff";
+          "鎗水翔也" = "#7fdbca";
+          "s_fujitani@toridori.co.jp" = "#ffcb6b";
+          "Devin AI" = "#c3e88d";
+          "renovate[bot]" = "#89ddff";
+          "dependabot[bot]" = "#89ddff";
+          "*" = "#b2ccd6";
+        };
+        branchColorPatterns = {
+          "^release/" = "#c792ea";
+          "^feature/" = "#82aaff";
+          "^fix/" = "#ffcb6b";
+          "^chore/" = "#7fdbca";
+        };
+        theme = {
+          activeBorderColor = [ "#7fdbca" "bold" ];
+          inactiveBorderColor = [ "#546e7a" ];
+          searchingActiveBorderColor = [ "#ffcb6b" "bold" ];
+          optionsTextColor = [ "#82aaff" ];
+          # Night Owl の青系選択だと追加行が沈み、削除行がピンクに見える
+          selectedLineBgColor = [ "#25364a" ];
+          inactiveViewSelectedLineBgColor = [ "#162536" ];
+          cherryPickedCommitFgColor = [ "#020b16" ];
+          cherryPickedCommitBgColor = [ "#7fdbca" ];
+          markedBaseCommitFgColor = [ "#020b16" ];
+          markedBaseCommitBgColor = [ "#ffcb6b" ];
+          unstagedChangesColor = [ "#ff9aa2" ];
+          defaultFgColor = [ "#d6deeb" ];
+        };
       };
       customCommands = [
         {
@@ -377,6 +426,13 @@ in
       user.name = "fujitani sora";
       user.email = "fujitanisora0414@gmail.com";
       ghq.root = [ "~/ghq" ];
+      color.ui = "auto";
+      "color.diff" = {
+        meta = "#82aaff";
+        frag = "#7fdbca";
+        old = "#ff9aa2";
+        new = "#8bf0b0";
+      };
     };
   };
 
@@ -433,6 +489,7 @@ in
   home.packages = (with pkgs; [
     nodejs
     uv
+    rubyWithBuildTools
     # batch 1: simple CLI tools
     ripgrep
     fd
@@ -451,7 +508,17 @@ in
     # batch 5: neovim + language servers + sheldon
     neovim
     lua-language-server
+    typescript
+    typescript-language-server
+    deno
+    biome
+    gopls
+    rust-analyzer
+    ruby-lsp
+    ty
+    nil
     markdown-oxide
+    marksman
     sheldon
     # batch 6: media/build tools
     imagemagick
@@ -468,6 +535,7 @@ in
     curl
     libyaml
     _1password-cli
+    moonbit
   ]) ++ codexAgentCliTools ++ [
     (pkgs.writeShellScriptBin "hereby" ''
       exec npx --yes hereby "$@"

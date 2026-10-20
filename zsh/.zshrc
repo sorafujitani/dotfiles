@@ -27,7 +27,7 @@ ZSH_CACHE_DIR="$HOME/.cache/zsh"
 [[ -d "$ZSH_CACHE_DIR" ]] || mkdir -p "$ZSH_CACHE_DIR"
 
 # zsh-autosuggestions パフォーマンス設定 (load 前に export)
-# MANUAL_REBIND=1 は precmd ごとに widget を再wrap し、zeno など他の widget wrapper と
+# MANUAL_REBIND=1 は precmd ごとに widget を再wrap し、他の widget wrapper と
 # 競合して打鍵時に ZLE の描画が一瞬止まる現象を起こすため使わない。
 #
 # ZSH_AUTOSUGGEST_USE_ASYNC=1 は zpty 経由で別 process が async fetch し、
@@ -94,24 +94,60 @@ export NIX_CONFIG="experimental-features = nix-command flakes"
 # bun global bin
 export PATH="$HOME/.bun/bin:$PATH"
 
+# source 対象を事前コンパイルする。元ファイル更新時だけ .zwc を再生成する。
+_zsh_compile_script() {
+    local script="$1"
+    [[ -r "$script" ]] || return
+    [[ -f "$script.zwc" && ! "$script" -nt "$script.zwc" ]] ||
+        zcompile -R "$script" 2>/dev/null
+}
+
+_zsh_source_compiled() {
+    local script="$1"
+    _zsh_compile_script "$script"
+    source "$script"
+}
+
 # tools (init 出力をキャッシュ化して eval string parse コストを削減)
-# bin が cache より新しい時のみ regenerate
+# 実体の path・binary mtime・設定ファイルのいずれかが変わった時だけ再生成する。
+# Nix profile の symlink は mtime が固定なので、解決後 path も cache key に含める。
 _zsh_cache_eval() {
-    local name="$1" cmd="$2"; shift 2
+    local name="$1" cmd="$2" dependency="$3"; shift 3
     local cache="$ZSH_CACHE_DIR/$name.zsh"
-    local src="${commands[$cmd]}"
+    local cache_key="$cache.key"
+    local cache_tmp="$cache.tmp.$$"
+    local src="${commands[$cmd]:A}"
+    local signature="$src ${(q)@}"
     [[ -z "$src" ]] && return
-    if [[ ! -f "$cache" || "$src" -nt "$cache" ]]; then
-        "$@" >| "$cache" 2>/dev/null
+    if [[ ! -s "$cache" || ! -f "$cache_key" || "$(<"$cache_key")" != "$signature" || \
+          "$src" -nt "$cache" || ( -n "$dependency" && "$dependency" -nt "$cache" ) ]]; then
+        if "$@" >| "$cache_tmp" 2>/dev/null; then
+            mv -f "$cache_tmp" "$cache"
+            print -r -- "$signature" >| "$cache_key"
+        else
+            rm -f "$cache_tmp"
+        fi
     fi
+    [[ -s "$cache" ]] || return
+    _zsh_compile_script "$cache"
     source "$cache"
 }
-_zsh_cache_eval mise    mise    mise activate zsh
-_zsh_cache_eval sheldon sheldon sheldon source
-_zsh_cache_eval zoxide  zoxide  zoxide init zsh
-_zsh_cache_eval direnv  direnv  direnv hook zsh
+
+# sheldon が source する script も先にコンパイルしておく。
+_zsh_compile_script "$HOME/.local/share/sheldon/repos/github.com/romkatv/zsh-defer/zsh-defer.plugin.zsh"
+_zsh_compile_script "$HOME/.local/share/sheldon/repos/github.com/zsh-users/zsh-completions/zsh-completions.plugin.zsh"
+
+_zsh_cache_eval mise    mise    "" mise activate zsh
+_zsh_cache_eval sheldon sheldon "$HOME/.config/sheldon/plugins.toml" sheldon source
+_zsh_cache_eval zoxide  zoxide  "" zoxide init zsh
+_zsh_cache_eval direnv  direnv  "" direnv hook zsh
 
 export PATH="$PATH:$HOME/go/bin"
+
+# nix profile を GNU tools / global ruby の default に。
+# sheldon 等の PATH 再構築より後、rv の起動時フックより前に置く
+# (project 内では rv / mise が更に前へ prepend して勝つ)
+export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
 
 # Ruby プロジェクトでない時は即 return して `rv shell env zsh` の外部プロセス起動を避ける
 _rv_autoload_hook () {
@@ -121,71 +157,104 @@ _rv_autoload_hook () {
 add-zsh-hook chpwd _rv_autoload_hook
 _rv_autoload_hook
 
-# grok
+# grok — full TUI by default (theme/bg from ~/.grok/config.toml)
 export PATH="$HOME/.grok/bin:$PATH"
 fpath=(~/.grok/completions/zsh $fpath)
+# minimal mode: terminal-native colors only (ignores theme)
+alias grok-min='command grok --minimal'
 
 # user-local commands and secret-loading wrappers take final precedence
 export PATH="$HOME/.local/bin:$HOME/.config/scripts:$PATH"
 
 # completion & keybindings
-# compinit dump を ~/.cache/zsh/ に集約 + 24h 以内なら -C で audit skip(高速化)
+# Zeno を読み込んだ既存 shell でこのファイルを source した場合、遅延初期化より
+# 先に旧 widget が呼ばれると、削除済みの function file を探して入力が壊れる。
+# 旧 binding が実際に残っている時だけ標準 widget へ戻し、下で zshctl を再設定する。
+if bindkey | command grep -q 'zeno-'; then
+    bindkey ' ' self-insert
+    bindkey '^M' accept-line
+    bindkey '^I' expand-or-complete
+    bindkey '^R' history-incremental-search-backward
+    bindkey -r '^Xx' '^X ' '^X^M' '^X^Z' '^Xp' '^Xs' '^X^R' 2>/dev/null
+fi
+
+# 初回 prompt の表示後に compinit と依存 plugin をまとめて読み込む。
+# dump があり fpath の構成が変わっていなければ -C で audit/dump 再生成を省略する。
 ZSH_COMPDUMP="$ZSH_CACHE_DIR/zcompdump"
-autoload -Uz compinit
-if [[ -n $ZSH_COMPDUMP(#qN.mh+24) ]]; then
-  compinit -d "$ZSH_COMPDUMP"
+
+_zsh_deferred_completion_init() {
+    local rebuild_dump=0 completion_dir
+    autoload -Uz compinit
+
+    if [[ ! -s "$ZSH_COMPDUMP" ]]; then
+        rebuild_dump=1
+    else
+        for completion_dir in $fpath; do
+            if [[ -d "$completion_dir" && "$completion_dir" -nt "$ZSH_COMPDUMP" ]]; then
+                rebuild_dump=1
+                break
+            fi
+        done
+    fi
+
+    if (( rebuild_dump )); then
+        compinit -d "$ZSH_COMPDUMP"
+    else
+        compinit -C -d "$ZSH_COMPDUMP"
+    fi
+    _zsh_compile_script "$ZSH_COMPDUMP"
+
+    local fzf_tab_plugin="$HOME/.local/share/sheldon/repos/github.com/Aloxaf/fzf-tab/fzf-tab.plugin.zsh"
+    [[ -f "$fzf_tab_plugin" ]] && _zsh_source_compiled "$fzf_tab_plugin"
+
+    local autosuggest_plugin="$HOME/.local/share/sheldon/repos/github.com/zsh-users/zsh-autosuggestions/zsh-autosuggestions.zsh"
+    [[ -f "$autosuggest_plugin" ]] && _zsh_source_compiled "$autosuggest_plugin"
+
+    local zshctl_bin="$HOME/.nix-profile/bin/zshctl"
+    local zshctld_bin="$HOME/.nix-profile/bin/zshctld"
+    local zshctl_loader="$HOME/.nix-profile/share/zshctl/zshctl.zsh"
+    if [[ -x "$zshctl_bin" && -x "$zshctld_bin" && -r "$zshctl_loader" ]]; then
+        # herdr 等の親 process から ZSHCTL_BOOTSTRAPPED=1 が export 継承されると
+        # zshctl-bootstrap.zsh が即 return し、widget 未登録のまま Enter だけ
+        # safe wrapper に繋がって nv/evsh が生コマンド扱いになる。
+        # この shell に widget が無い時だけ bootstrap guard を外して再初期化する。
+        # zle -l は autosuggest wrap 後に
+        # `zshctl-auto-snippet (_zsh_autosuggest_bound_...)` 形式になるので
+        # 行末固定ではなく prefix で見る。
+        if ! zle -l 2>/dev/null | command grep -q '^zshctl-auto-snippet'; then
+            unset ZSHCTL_BOOTSTRAPPED ZSHCTL_LOADED
+            # 親 shell の session id を子 pane で再利用しない
+            unset ZSHCTL_SESSION_ID ZSHCTL_HISTORY_SESSION_ID
+        fi
+        source "$zshctl_loader"
+        hash zshctl="$zshctl_bin"
+        hash zshctld="$zshctld_bin"
+
+        if (( $+functions[zshctl-bind-default-keys] )) && zle -l 2>/dev/null | command grep -q '^zshctl-auto-snippet'; then
+            zshctl-bind-default-keys
+
+            # zshctl-auto-snippet は候補なし時に押下キーを self-insert する。
+            # Enter から呼ぶ場合は CR を BUFFER へ入れず、そのまま accept-line する。
+            _zshctl_noop() { : }
+            zle -N _zshctl_noop
+            _zshctl_safe_auto_snippet_and_accept_line() {
+                local ZSHCTL_AUTO_SNIPPET_FALLBACK=_zshctl_noop
+                zle zshctl-auto-snippet
+                zle accept-line
+            }
+            zle -N _zshctl_safe_auto_snippet_and_accept_line
+            bindkey '^M' _zshctl_safe_auto_snippet_and_accept_line
+        fi
+    fi
+
+    unfunction _zsh_deferred_completion_init
+}
+
+if (( $+functions[zsh-defer] )); then
+    zsh-defer _zsh_deferred_completion_init
 else
-  compinit -C -d "$ZSH_COMPDUMP"
+    _zsh_deferred_completion_init
 fi
-# zcompile で .zwc 化(次回起動時のロード高速化、バックグラウンドで)
-[[ -f "$ZSH_COMPDUMP" && (! -f "$ZSH_COMPDUMP.zwc" || "$ZSH_COMPDUMP" -nt "$ZSH_COMPDUMP.zwc") ]] && \
-    zcompile "$ZSH_COMPDUMP" &!
-
-# fzf-tab と zsh-autosuggestions は compinit の後で即時 source する
-# (sheldon の defer queue が消化されない環境のため、待たずに確実にロードする)
-FZF_TAB_PLUGIN="$HOME/.local/share/sheldon/repos/github.com/Aloxaf/fzf-tab/fzf-tab.plugin.zsh"
-[[ -f "$FZF_TAB_PLUGIN" ]] && source "$FZF_TAB_PLUGIN"
-unset FZF_TAB_PLUGIN
-
-ZSH_AUTOSUGGEST_PLUGIN="$HOME/.local/share/sheldon/repos/github.com/zsh-users/zsh-autosuggestions/zsh-autosuggestions.zsh"
-[[ -f "$ZSH_AUTOSUGGEST_PLUGIN" ]] && source "$ZSH_AUTOSUGGEST_PLUGIN"
-unset ZSH_AUTOSUGGEST_PLUGIN
-
-# zeno: 死んだ shell PID の socket 残骸を起動前に掃除する (再発: 同 PID 引き当て時の bind 失敗を防止)
-() {
-    local sockdir="${TMPDIR%/}/zeno-${UID}"
-    [[ -d "$sockdir" ]] || return
-    local sock pid
-    for sock in "$sockdir"/zeno-*.sock(N); do
-        pid="${${sock:t:r}#zeno-}"
-        kill -0 "$pid" 2>/dev/null || rm -f "$sock"
-    done
-}
-
-export ZENO_HOME=~/.config/zeno
-export ZENO_GIT_CAT="bat --color=always"
-
-ZENO_PLUGIN="$HOME/.local/share/sheldon/repos/github.com/yuki-yano/zeno.zsh/zeno-bootstrap.zsh"
-if [[ -f "$ZENO_PLUGIN" ]]; then
-  source "$ZENO_PLUGIN"
-  if [[ -n $ZENO_BOOTSTRAPPED ]]; then
-    zeno-register-lazy-widgets \
-      zeno-auto-snippet \
-      zeno-auto-snippet-and-accept-line \
-      zeno-insert-snippet \
-      zeno-preprompt \
-      zeno-preprompt-snippet \
-      zeno-history-selection
-  fi
-fi
-unset ZENO_PLUGIN
-
-# zeno-server 子プロセス + 自分の socket は shell exit 時に確実に片付ける
-zshexit_zeno_cleanup() {
-    [[ -n "$ZENO_SOCK" && -e "$ZENO_SOCK" ]] && rm -f "$ZENO_SOCK"
-}
-typeset -ga zshexit_functions
-zshexit_functions+=(zshexit_zeno_cleanup)
 
 # EDITOR=nvim だと main keymap が viins に倒れるため明示的に emacs に固定
 bindkey -e
@@ -204,20 +273,6 @@ zstyle ':fzf-tab:complete:cd:*' fzf-preview \
 # git checkout のブランチ説明
 zstyle ':fzf-tab:complete:git-(add|diff|restore|checkout):*' fzf-preview \
   'git diff --color=always -- $word 2>/dev/null | head -200'
-
-# 新版 zeno は ZENO_ENABLE を使う(旧版の ZENO_LOADED もフォールバック)
-if [[ -n $ZENO_BOOTSTRAPPED || -n $ZENO_ENABLE || -n $ZENO_LOADED ]]; then
-  # ^i (Tab) は fzf-tab に譲るため zeno-completion へは bind しない
-  bindkey " " zeno-auto-snippet
-  bindkey "^m" zeno-auto-snippet-and-accept-line
-  bindkey "^xx" zeno-insert-snippet
-  bindkey "^x " zeno-insert-space
-  bindkey "^x^m" accept-line
-  bindkey "^x^z" zeno-toggle-auto-snippet
-  bindkey "^xp" zeno-preprompt
-  bindkey "^xs" zeno-preprompt-snippet
-  bindkey "^x^r" zeno-history-selection
-fi
 
 # functions
 # _set_tab_title は _precmd_combined に統合済み (precmd hook の個別登録を避けるため)

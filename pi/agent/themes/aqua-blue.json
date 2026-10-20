@@ -20,7 +20,7 @@
     "borderMuted": "#24434b",
     "success": "#22c55e",
     "error": "#ef4444",
-    "warning": "#facc15",
+    "warning": "textWhite",
     "muted": "muted",
     "dim": "dim",
     "text": "textWhite",

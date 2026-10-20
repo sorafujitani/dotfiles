@@ -3,32 +3,47 @@ onboarding = false
 # Prefix used before Herdr-specific shortcuts.
 prefix = "ctrl+a"
 
-# Open the workspace navigation picker directly.
-workspace_picker = "ctrl+w"
+# Keep Ctrl+W and Ctrl+N available to shells and editors.
+workspace_picker = "prefix+w"
+zoom = "prefix+z"
 
-# Toggle zoom (fullscreen) for the current pane.
-zoom = "ctrl+n"
+# Browse/search/copy pane history in $EDITOR without using the outer terminal.
+edit_scrollback = "prefix+e"
 
-# Move between panes in the current workspace.
-focus_pane_left = "cmd+left"
-focus_pane_right = "cmd+right"
-focus_pane_up = "cmd+up"
-focus_pane_down = "cmd+down"
+# Leave the session running; this does not close panes or stop their processes.
+detach = "prefix+q"
+
+# Prefix bindings work across terminals; Cmd bindings are optional Mac shortcuts.
+focus_pane_left = ["prefix+h", "cmd+left"]
+focus_pane_right = ["prefix+l", "cmd+right"]
+focus_pane_up = ["prefix+k", "cmd+up"]
+focus_pane_down = ["prefix+j", "cmd+down"]
 
 # Move between tabs in the current workspace.
-previous_tab = "cmd+ctrl+left"
-next_tab = "cmd+ctrl+right"
+previous_tab = ["prefix+p", "cmd+ctrl+left"]
+next_tab = ["prefix+n", "cmd+ctrl+right"]
 
 # Move between workspaces.
-previous_workspace = "cmd+ctrl+up"
-next_workspace = "cmd+ctrl+down"
+previous_workspace = ["prefix+ctrl+p", "cmd+ctrl+up"]
+next_workspace = ["prefix+ctrl+n", "cmd+ctrl+down"]
 
 [[keys.command]]
-# Open a temporary lazygit pane from the current workspace.
+# Open lazygit in a session popup without changing the tab layout.
 key = "prefix+ctrl+g"
-type = "pane"
+type = "popup"
 description = "Open lazygit"
 command = "lazygit"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+# Review working tree changes with hunk in a session popup.
+key = "prefix+ctrl+h"
+type = "popup"
+description = "Open hunk diff"
+command = "hunk diff"
+width = "90%"
+height = "90%"
 
 [[keys.command]]
 # Open a temporary Neovim pane from the current workspace.
@@ -38,6 +53,12 @@ description = "Open nvim"
 command = "nvim"
 
 [ui]
+# Confirm workspace closure; use prefix+q to detach instead.
+confirm_close = true
+
+# Copy pane selections through Herdr rather than the outer terminal.
+copy_on_select = true
+
 # Put agents that need attention near the top of the panel.
 agent_panel_sort = "priority"
 

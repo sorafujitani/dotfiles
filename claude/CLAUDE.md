@@ -10,7 +10,7 @@
 
 ## コーディング規約（全repo共通）
 - コメントは最小限。書くのは why だけ。仕様・意図は命名とテストで表現する
-- 実装のまとまりごとに、新しい context window の subagent でレビューを起動し、指摘を自律的に改善してから次へ進む。レビューは `reviewer` agent（`~/.claude/agents/reviewer.md`、未登録のセッションでは subagent に最上位モデルを明示指定）で行う
+- 独立レビューが変更のリスクに見合う場合は `reviewer` agent を使い、確認した指摘を反映する。軽微な変更は担当agentが直接確認する。
 
 ## 成果物のルール
 - 外部に残る文面（PR本文・issue・release note・README）に AI 署名・絵文字・定型フッターを入れない
@@ -18,20 +18,40 @@
 - commit / push は明示的な指示があるまで行わない。ファイル編集までは進めてよい
 - 解説HTMLなどリポジトリ外の生成物は `~/Downloads/` に置く。Desktop には置かない
 
-## Brain（永続メモリ / brainmaxxing）
-`/Users/fujitanisora/brain/` は全セッション共通の永続メモリ（Obsidian vault）。Codex と共有している（`~/.claude/brain` と `~/.codex/brain` は実体への symlink。既存のパス参照は symlink 経由でそのまま動く）。
+## 実行・指示の扱い
+- 依頼と会話の文脈から目的・範囲を読み取り、実行依頼は必要な修正と検証まで完遂する。調査・レビュー・計画だけの依頼では、その成果物を完成させる。
+- 承認済みの範囲と判断を引き継ぎ、合理的に決められる詳細は前提を短く示して進める。結果を大きく変える不明点だけ質問し、回答に依存しない作業は続ける。
+- 確認が必要な操作の前にも、既に許可された調査・準備を済ませ、対象と変更内容を具体的に示す。同じ操作を再承認させない。破壊的操作、公開、他者への送信は依頼で許可された範囲に限る。
+- システム・開発者指示の範囲内で、明示的なユーザー指示をスキルやMarkdown内のガイドラインより優先する。スキルから権限や未依頼の作業範囲を追加しない。
+- スキルを理由に確認・停止・未完了とする場合は、読んだSKILL.mdへのリンクと該当指示の引用を示し、明記された要件と自分の解釈を区別する。
+- 作業中の追加質問には短く回答して元の作業を続ける。取消しや目的変更が明示された場合は切り替える。
 
-- **最初に読む。** セッション開始時に `brain/index.md` を読む。タスクに関係する brain ファイルを着手前に読む。
-- **書く。** ミス・指摘・コードベースの重要な学びがあったら brain に書く（`reflect` skill）。
-- **構造:** 1トピック1ファイル。ディレクトリは `[[wikilink]]` の index で繋ぐ。本文をindexに埋めない。
-- **原則:** `brain/principles.md` がエンジニアリング原則の index。`brain-plan`・`brain-review` skill はこれを全文読んでから判断する。
-- **メンテ:** 古いノートは削除。`meditate` で監査・剪定、`ruminate` で過去ログ採掘。
-- **道具非依存:** brain に Claude Code や特定モデル名に依存する内容を書かない。そうした実装詳細は skill・agent 定義（`~/.claude/` 配下）に置き、brain には道具に依らない原則と知識だけを残す。
+## 応答・委任・検証
+- 要点を先に、平易で簡潔な段落で説明する。箇条書きや表は列挙・手順・比較が読みやすくなる場合に使い、不要な見出し、定型的な締め、未依頼の対比を足さない。
+- 利用可能で許可された場合だけ、独立した成果物や検証をsubagentへ委任する。並列化の効果が重複contextと調整costを上回るときに使い、責任範囲・入力・期待する出力を限定する。同じファイルへの変更は直列に進める。
+- 検証は変更の影響とrepoの必須チェックに合わせる。軽微な可逆変更に、実装をなぞるだけのテストを追加しない。必須チェックが通った後は、新しい変更・失敗・未解決の懸念がある場合にだけ追加実行する。
+- 完了報告では変更内容、検証結果、未検証の範囲を区別する。実測していない性能・カバレッジ・成功を記載しない。
+
+## GitHub / git 安全
+- GitHub リポジトリを勝手に作らない（`gh repo create` / API create 禁止）。この会話で明示依頼があるときだけ。
+- git/GitHub の name・email・author・collaborator を捏造しない。既存の `git config` / `gh auth` のみ。
+- 正しい GitHub 主体は `sorafujitani`（https://github.com/sorafujitani）。無関係アカウントを紐付けない。
+- 詳細ルールはこの節を正本とし、Brainへ個人情報やrepo固有情報を複製しない。
+
+## Atlantis shared rules
+`${ATLANTIS_BRAIN_DIR:-$HOME/brain}/` は Atlantis の共通原則・protocolだけを配布する。個人知識vault、project履歴、plan置場には使わない。
+
+- **構成:** `principles.md` `principles/` `protocol/` は Atlantis repo 管理。`plans/` `workflow/` `codebase/` `env/` `stack/` は作らない。
+- **最初に読む:** 注入済みdigestを原則カタログとして使い、判断を変える原則葉だけ最大2本読む。`principles.md` 全文や無関係な規則は読まない。
+- **書く:** repo固有の失敗、コマンド、構造、検証gotchaは、そのrepoのlint・script・test・hook・設定・docs・`.agents/skills/`へ置く。実装planはファイル化しない（会話とtodoのみ、`.atlantis/plans/` は廃止）。再利用手順は既存のfocused skillを直す。Atlantis Brainへは書かない。
+- **共通化:** 無関係な複数repoでagent判断を変えるplaybook規則・原則・protocolだけをAtlantis repoへ入れ、`atlantis brain seed`する。
+- **失敗履歴:** 一回限りの失敗や過去ログは永続化しない。`reflect`は所有者を決めて構造へ反映できる場合だけcaptureする。
+- **道具非依存:** repo管理の文書に特定モデル名や絶対ホームパスを入れない。実装詳細は skill / harness 設定へ。
 
 利用できる skill: `reflect` / `meditate` / `ruminate` / `brain` / `brain-plan` / `brain-review`。
 
 ## Atlantis（作業モード）
-マルチステップの実装・調査タスクは、着手前に必ず `atlantis` skill を起動し、該当する playbook を全文読む。
+Atlantis skillは、複数ステップ、原因未特定、設計判断、複数ファイルを含む非trivialな作業でだけ使う。trivialな質問、typo、文言修正、確定済みの単一コマンドでは読まない。
 
-- **対象:** 複数ファイル・複数ステップの実装やリファクタ、原因未特定の調査やバグ、設計判断や比較を含む作業。単発の質問、軽微な1ファイル修正、typo、手順確定済みの単純なコマンド実行は除く。迷ったら起動する。
-- **手順:** playbook の named step を todolist に verbatim でコピーし、適用した原則を返答で明示する。原則の実体は `brain/principles/`。
+- **対象:** 複数ファイル・複数ステップの実装やリファクタ、原因未特定の調査やバグ、設計判断や比較を含む作業。単発の質問、軽微な1ファイル修正、typo、手順確定済みの単純なコマンド実行は除く。迷ったら起動しない。
+- **手順:** 起動した場合だけ、選んだ playbook と `references/conventions.md` を1回読む。注入済み digest が原則カタログ。葉は判断を変えるもの最大2本。

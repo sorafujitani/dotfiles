@@ -21,9 +21,6 @@ vim.opt.updatetime = 250
 -- ヘルプ言語を日本語に設定
 vim.opt.helplang = "ja"
 
--- 非アクティブなバッファもバックグラウンドで開いておく
-vim.opt.hidden = true
-
 -- eob非表示
 vim.opt.fillchars = { eob = " " }
 
@@ -33,9 +30,6 @@ vim.o.mouse = "a"
 -- クリップボードをunnamedplusに設定してシステムのクリップボードと連携
 vim.opt.clipboard:append({ "unnamedplus" })
 
--- コマンドラインの補完機能を有効にする
-vim.opt.wildmenu = true
-
 -- statuslineをグローバルに固定
 vim.opt.laststatus = 3
 
@@ -43,15 +37,12 @@ vim.opt.laststatus = 3
 vim.opt.timeoutlen = 300
 
 -- 検索
-vim.opt.hlsearch = true
-vim.opt.incsearch = true
 vim.opt.matchtime = 1
 
 -- インデント
 vim.opt.shiftwidth = 2
 vim.opt.tabstop = 2
 vim.opt.expandtab = true
-vim.opt.autoindent = true
 vim.opt.smartindent = true
 
 -- 行番号
@@ -82,6 +73,13 @@ vim.opt.background = "dark"
 -- プラグイン設定
 vim.g.yoinkAutoFormat = 1
 vim.g.yoinkMaxItems = 10
+
+-- Neovim 標準では未登録の filetype
+vim.filetype.add({
+	extension = {
+		mbt = "moonbit",
+	},
+})
 
 -- colorscheme with safe loading
 local colorscheme = "orbital"

@@ -1,6 +1,7 @@
 # Neovim Configuration
 
 ## Environment
+
 - macOS
 - Homebrew
 - Neovim 0.11+
@@ -43,7 +44,7 @@ brew install mise
 mise install node@22
 mise use --global node@22
 
-# pnpm (required for biome LSP)
+# pnpm (Biomeのプロジェクトローカルfallbackを使う場合)
 npm install -g pnpm
 
 # lazygit (Git TUI, used by :LazyGit)
@@ -113,38 +114,40 @@ nvim
 ### 7. Language Server Setup
 
 LSP servers are configured natively using Neovim 0.11+ `vim.lsp.config()` / `vim.lsp.enable()`.
-Server configs are in the `lsp/` directory. Install the servers manually:
+Server configs are in the `lsp/` directory.
+
+#### Nix + Home Manager (推奨)
+
+この環境ではLSPサーバーもHome Managerで宣言的に管理します。
 
 ```bash
-# TypeScript/JavaScript
-npm install -g typescript typescript-language-server
-
-# Biome (project-local, via pnpm)
-# Add biome to each project: pnpm add -D @biomejs/biome
-
-# Deno (only activates when deno.json exists in project)
-brew install deno
-
-# Ruby
-gem install ruby-lsp
-
-# Go
-go install golang.org/x/tools/gopls@latest
-
-# Rust
-rustup component add rust-analyzer
-
-# Python
-uv tool install ty
-
-# Lua
-brew install lua-language-server
+home-manager switch --flake ~/.config/home-manager#fujitanisora
 ```
+
+現在のHome Manager設定で管理するサーバーは以下です。
+
+- TypeScript/JavaScript: `typescript`, `typescript-language-server`
+- Biome: `biome`
+- Deno: `deno`
+- Ruby: `ruby-lsp`
+- Go: `gopls`
+- Rust: `rust-analyzer`
+- Python: `ty`
+- Nix: `nil`
+- Lua: `lua-language-server`
+- Markdown: `marksman`
+
+`rfmt-lsp`はプロジェクトのRuby gemとして管理するため、必要なプロジェクトで`bundle install`してください。
+
+#### Home Managerを使わない場合
+
+各環境のパッケージマネージャーから、上記と同名のLSPサーバーをインストールしてください。
+Biomeはプロジェクトローカルの`pnpm`経由にもfallbackできます。
 
 ## Configuration Files
 
 | File | Description |
-|------|-------------|
+| ------ | ------------- |
 | `init.lua` | Main entry point |
 | `lua/config/lazy.lua` | Plugin management (Lazy.nvim) |
 | `lua/core/options.lua` | Base settings (leader=" ") |
@@ -159,12 +162,14 @@ brew install lua-language-server
 ## Key Bindings
 
 ### Completion (Blink.cmp)
+
 - `Tab`/`Shift-Tab`: Navigate candidates
 - `Ctrl-Space`: Show completion menu / toggle documentation
 - `Enter`: Confirm
 - `Ctrl-e`: Cancel
 
 ### LSP
+
 - `K`: Hover documentation
 - `gd`: Go to definition (picker)
 - `gr`: Find references (picker)
@@ -177,6 +182,7 @@ brew install lua-language-server
 - `<leader>dl`: Diagnostic list
 
 ### Picker (snacks.picker)
+
 - `<C-p>`: Find files
 - `<C-g>`: Grep
 - `<C-f>`: Lines in buffer
@@ -328,7 +334,7 @@ For Docker, add the binary installation to `Dockerfile` as well.
 ### Checklist
 
 | # | File | Action |
-|---|------|--------|
+| --- | ------ | -------- |
 | 1 | `lsp/<name>.lua` | Create server config |
 | 2 | `lua/lsp/init.lua` | Add to `vim.lsp.enable()` |
 | 3 | `lua/config/lazy.lua` | Add parser to `ensure_installed` |

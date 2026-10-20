@@ -59,6 +59,9 @@ blink.setup({
 				end
 				return false
 			end,
+			function()
+				return require("core.markdown_list").continue_list()
+			end,
 			"fallback",
 		},
 		["<Tab>"] = { "select_next", "snippet_forward", "fallback" },

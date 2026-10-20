@@ -24,10 +24,17 @@ local function tsserver_lib_of(bin_path)
   if not real then
     return nil
   end
-  -- symlink型install (brew, npm -g) は .../typescript/bin/tsc に解決される
-  local lib = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(real), '..', 'lib'))
-  if vim.uv.fs_stat(vim.fs.joinpath(lib, 'tsserver.js')) then
-    return lib
+  -- symlink型install (brew, npm -g) は .../typescript/bin/tsc に解決される。
+  -- Nixは .../typescript/bin/tsc と .../typescript/lib/node_modules/typescript/lib に分かれる。
+  local base = vim.fs.joinpath(vim.fs.dirname(real), '..')
+  local candidates = {
+    vim.fs.normalize(vim.fs.joinpath(base, 'lib')),
+    vim.fs.normalize(vim.fs.joinpath(base, 'lib', 'node_modules', 'typescript', 'lib')),
+  }
+  for _, lib in ipairs(candidates) do
+    if vim.uv.fs_stat(vim.fs.joinpath(lib, 'tsserver.js')) then
+      return lib
+    end
   end
   return nil
 end
@@ -58,7 +65,7 @@ return {
     local lib = tsserver_lib_of(vim.fn.exepath('tsc')) or npm_global_tsserver_lib()
     if not lib then
       vim.notify(
-        'ts_ls: typescript not found in workspace or globally (install: brew install typescript)',
+        'ts_ls: typescript not found in workspace or globally (install: nix profile install nixpkgs#typescript)',
         vim.log.levels.WARN
       )
       return

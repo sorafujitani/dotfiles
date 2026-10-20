@@ -1,0 +1,31 @@
+# chatgpt-dark
+# ChatGPT desktop (旧 Codex app) のダークモードに寄せた、黒ベースで目に優しい配色。
+# スクリーンショット実測値:
+#   背景 #0d1217 / 面 #181d23, #2a2f35 / 本文 #e8f7ff / 淡色 #7a848b / リンク #38caea
+
+background = #0d1217
+foreground = #dfe9f0
+cursor-color = #38caea
+cursor-text = #0d1217
+selection-background = #2a2f35
+selection-foreground = #e8f7ff
+split-divider-color = #2a2f35
+
+# normal
+palette = 0=#181d23
+palette = 1=#e5737e
+palette = 2=#86c99a
+palette = 3=#e3c07a
+palette = 4=#79a8e6
+palette = 5=#c3a3e8
+palette = 6=#38caea
+palette = 7=#c2ccd3
+# bright
+palette = 8=#7a848b
+palette = 9=#f28b94
+palette = 10=#a0d9ad
+palette = 11=#efd38f
+palette = 12=#93bdf0
+palette = 13=#d4b8f0
+palette = 14=#6fd8f2
+palette = 15=#e8f7ff

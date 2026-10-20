@@ -98,7 +98,7 @@ RUN nvim --headless "+Lazy! sync" +qa
 RUN touch /tmp/.nvim-ts-init.lua \
     && nvim --headless \
         -c "e /tmp/.nvim-ts-init.lua" \
-        -c "lua require('nvim-treesitter').install({'lua','javascript','typescript','tsx','rust','go','ruby','html','css','json','yaml','toml','markdown','bash','vim','vimdoc','python'}):wait()" \
+        -c "lua require('nvim-treesitter').install({'lua','javascript','typescript','tsx','rust','go','ruby','html','css','json','yaml','toml','markdown','markdown_inline','bash','vim','vimdoc','python','nix'}):wait()" \
         -c "qa"
 
 WORKDIR /workspace

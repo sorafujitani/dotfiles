@@ -29,7 +29,19 @@ vim.keymap.set("n", "<leader>?", function()
 end, { desc = "Show keymaps" })
 
 -- try-catch wrap (TypeScript/JavaScript)
-vim.keymap.set("n", "<Leader>try", [[:normal! Vito try {\r} catch (err) {\r    console.error(err);\r}<Esc>]], { desc = "Wrap in try-catch" })
+vim.keymap.set("n", "<Leader>try", function()
+	local lnum = vim.api.nvim_win_get_cursor(0)[1]
+	local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, true)[1]
+	local indent = line:match("^%s*")
+	local shift = vim.bo.expandtab and string.rep(" ", vim.fn.shiftwidth()) or "\t"
+	vim.api.nvim_buf_set_lines(0, lnum - 1, lnum, true, {
+		indent .. "try {",
+		indent .. shift .. vim.trim(line),
+		indent .. "} catch (err) {",
+		indent .. shift .. "console.error(err);",
+		indent .. "}",
+	})
+end, { desc = "Wrap in try-catch" })
 
 -- サブモジュール読み込み
 require("keymaps.lsp")

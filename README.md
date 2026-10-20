@@ -1,6 +1,6 @@
 # dotfiles
 
-ツールごとの設定と単体スクリプトを管理します。`install.sh`が設定場所から各ファイルへリンクを張るため、コピーによる同期は不要です。
+ツールごとの設定と単体スクリプトを管理します。管理元は`~/ghq/github.com/sorafujitani/dotfiles/`です。`install.sh`が設定場所から各ファイルへリンクを張るため、コピーによる同期は不要です。
 
 ## 配置
 
@@ -18,7 +18,7 @@
 | `AGENTS.md` | `~/AGENTS.md` |
 | その他の対応ツール | `~/.config/<ツール名>/` |
 
-`nvim/`、`wezterm/`、`ghostty/`、`herdr/`、`bash/`などは、そのまま設定ディレクトリに対応します。内部のファイル名と階層は各ツールが読み込む形です。
+`nvim/`、`emacs/`、`wezterm/`、`ghostty/`、`herdr/`、`bash/`などは、そのまま設定ディレクトリに対応します。内部のファイル名と階層は各ツールが読み込む形です。
 
 対応ツールは`install.sh`に列挙しています。`XDG_CONFIG_HOME`が指定されていれば、`~/.config`の代わりにその絶対パスを使います。
 
@@ -27,6 +27,7 @@
 リポジトリのルートで実行します。先に変更内容を確認し、問題がなければ適用してください。適用対象は対応ツールの全ファイルです。
 
 ```sh
+cd ~/ghq/github.com/sorafujitani/dotfiles
 sh install.sh --dry-run
 sh install.sh
 ```
@@ -51,7 +52,7 @@ sh scripts/update-agents
 
 インストール済みのClaude Code・Codex・Pi・OpenCode・Grokを更新します。未インストールは無視し、更新に失敗しても残りは続行します。各CLIの更新処理には通信やnpmなどが必要です。
 
-Bashの導入は [bash/README.md](bash/README.md) を参照してください。
+Bashの導入は [bash/README.md](bash/README.md)、Emacsの導入は [emacs/README.md](emacs/README.md) を参照してください。
 
 Codexのモデル・sandbox・承認設定と `sorafujitani/skills` のAgent Skillsを別のマシンへ導入する場合は、[codex/README.md](codex/README.md) のダウンロードコマンドを使ってください。
 

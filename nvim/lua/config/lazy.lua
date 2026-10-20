@@ -26,10 +26,25 @@ require("lazy").setup({
     build = ":TSUpdate",
     config = function()
       require("nvim-treesitter").setup({})
+      -- moonbit は upstream registry 未登録のため手動登録 (queries も parser repo から取り込まれる)
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "TSUpdate",
+        callback = function()
+          require("nvim-treesitter.parsers").moonbit = {
+            install_info = {
+              url = "https://github.com/moonbitlang/tree-sitter-moonbit",
+              files = { "src/parser.c", "src/scanner.c" },
+              branch = "main",
+              queries = "queries",
+            },
+          }
+        end,
+      })
       -- 非同期インストール。導入済み parser はスキップされるため初回のみ実質動く
       require("nvim-treesitter").install({
         "lua", "javascript", "typescript", "tsx", "rust", "go", "ruby",
         "html", "css", "json", "yaml", "toml", "markdown", "markdown_inline", "bash", "vim", "vimdoc", "python", "nix",
+        "moonbit",
       })
       -- main には highlight/indent module が無いため FileType で自前起動する
       vim.api.nvim_create_autocmd("FileType", {
@@ -59,7 +74,7 @@ require("lazy").setup({
     ft = { "markdown" },
     dependencies = {
       "nvim-treesitter/nvim-treesitter",
-      "echasnovski/mini.icons",
+      "nvim-mini/mini.icons",
     },
     ---@module 'render-markdown'
     ---@type render.md.UserConfig
@@ -76,12 +91,47 @@ require("lazy").setup({
         right_pad = 1,
       },
       heading = {
-        width = "block",
-        left_pad = 0,
+        -- 見出しをウィンドウ幅まで伸ばして、本文との境界を明確にする。
+        -- 数字やアイコンへ置換せず、Markdown 本来の # を維持する。
+        icons = function(ctx)
+          return string.rep("#", ctx.level) .. " "
+        end,
+        width = "full",
+        left_pad = 1,
         right_pad = 1,
         border = false,
       },
+      bullet = {
+        -- 深さごとに形を変え、長い箇条書きでも親子関係を追いやすくする。
+        icons = { "●", "○" },
+        right_pad = 1,
+        highlight = "RenderMarkdownBullet",
+      },
     },
+  },
+
+  -- ブラウザ上のMarkdownライブプレビュー
+  {
+    "toppair/peek.nvim",
+    cmd = { "Mdview" },
+    build = "deno task --quiet build:fast",
+    config = function()
+      local peek = require("peek")
+      peek.setup({
+        app = "browser",
+        theme = "dark",
+        update_on_change = true,
+      })
+      vim.api.nvim_create_user_command("Mdview", function()
+        if peek.is_open() then
+          peek.close()
+        elseif vim.bo.filetype == "markdown" then
+          peek.open()
+        else
+          vim.notify("MdviewはMarkdownバッファで実行してください", vim.log.levels.WARN)
+        end
+      end, { desc = "Toggle Markdown preview in browser", force = true })
+    end,
   },
 
   -- snippets
@@ -96,8 +146,7 @@ require("lazy").setup({
   },
 
   -- mini
-  { "echasnovski/mini.icons", lazy = true, opts = {} },
-  { "nvim-mini/mini.test", cmd = "MiniTest" },
+  { "nvim-mini/mini.icons", lazy = true, opts = {} },
 
   -- lazydev (Lua開発支援)
   {
@@ -204,7 +253,8 @@ require("lazy").setup({
       if ok then
         git.setup({
           keymaps = {
-            blame = "<Leader>gb",
+            -- blame は keymaps/git.lua で <leader>gb に定義（lazy load 前でも効くように）
+            blame = "",
             -- browse は snacks.gitbrowse (<leader>go) に統一
             browse = "",
           },
@@ -225,7 +275,8 @@ require("lazy").setup({
     end,
   },
   { "sindrets/diffview.nvim", cmd = { "DiffviewOpen", "DiffviewFileHistory" } },
-  { "FabijanZulj/blame.nvim", cmd = "BlameToggle" },
+  -- setup() を呼ばないと :BlameToggle が登録されないため opts 必須
+  { "FabijanZulj/blame.nvim", cmd = "BlameToggle", opts = {} },
 
   -- flash (モーション強化)
   {
@@ -242,7 +293,7 @@ require("lazy").setup({
 
   -- comment (mini.comment)
   {
-    "echasnovski/mini.comment",
+    "nvim-mini/mini.comment",
     keys = {
       { "gc", mode = { "n", "v" }, desc = "Comment toggle" },
     },
@@ -267,7 +318,6 @@ require("lazy").setup({
   { "ryoppippi/ray-so.vim", cmd = "RaySo" },
 
   -- filer (キー入力時)
-  { "lambdalisue/nerdfont.vim", event = "VeryLazy" },
   {
     "stevearc/oil.nvim",
     keys = { { "<S-e>", "<cmd>Oil<CR>", desc = "Open Oil file explorer" } },
@@ -296,7 +346,7 @@ require("lazy").setup({
 
   -- snippets (mini.snippets)
   {
-    "echasnovski/mini.snippets",
+    "nvim-mini/mini.snippets",
     event = "InsertEnter",
     config = function()
       require("mini.snippets").setup({
@@ -312,13 +362,12 @@ require("lazy").setup({
   -- neotest (コマンド時のみ)
   { "nvim-neotest/neotest", cmd = "Neotest" },
   { "nvim-lua/plenary.nvim", lazy = true },
-  { "antoinemadec/FixCursorHold.nvim", lazy = true },
   { "marilari88/neotest-vitest", lazy = true },
   { "MisanthropicBit/neotest-busted", lazy = true },
 
   -- autopairs (mini.pairs)
   {
-    "echasnovski/mini.pairs",
+    "nvim-mini/mini.pairs",
     event = "InsertEnter",
     config = function()
       require("mini.pairs").setup({})
@@ -334,8 +383,17 @@ require("lazy").setup({
     end,
   },
 
-  -- yank (テキスト操作時)
-  { "svermeulen/vim-yoink", event = "TextYankPost" },
+  -- yank履歴 (TextYankPost だと初回 yank を履歴に取りこぼすため VeryLazy)
+  {
+    "svermeulen/vim-yoink",
+    event = "VeryLazy",
+    keys = {
+      { "p", "<Plug>(YoinkPaste_p)", mode = "n", desc = "Paste (yoink)" },
+      { "P", "<Plug>(YoinkPaste_P)", mode = "n", desc = "Paste before (yoink)" },
+      { "[y", "<Plug>(YoinkPostPasteSwapBack)", mode = "n", desc = "Cycle older yank" },
+      { "]y", "<Plug>(YoinkPostPasteSwapForward)", mode = "n", desc = "Cycle newer yank" },
+    },
+  },
 
 
   -- copilot (入力時)

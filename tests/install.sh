@@ -61,6 +61,23 @@ printf 'new file\n' > "$repo/nvim/lua/new.lua"
 sh "$repo/install.sh" > "$temporary/add-file"
 [ -L "$HOME/.config/nvim/lua/new.lua" ]
 
+# Moving the repository only requires rerunning the installer.
+old_repo=$repo
+repo=$temporary/relocated\ repo\ with\ spaces
+mv "$old_repo" "$repo"
+sh "$repo/install.sh" --dry-run > "$temporary/relocate-dry-run"
+[ "$(readlink "$HOME/.config/nvim/init.lua")" = "$old_repo/nvim/init.lua" ]
+sh "$repo/install.sh" > "$temporary/relocate"
+[ "$(readlink "$HOME/.config/nvim/init.lua")" = "$repo/nvim/init.lua" ]
+[ "$(readlink "$HOME/.config/nvim/lua/new.lua")" = "$repo/nvim/lua/new.lua" ]
+[ "$(readlink "$HOME/.zshrc")" = "$repo/zsh/.zshrc" ]
+[ "$(readlink "$HOME/.claude/skills/shared")" = ../../.agents/skills/shared ]
+[ "$(cat "$HOME/.config/nvim/init.lua")" = 'edited in repo' ]
+[ "$(cat "$HOME/.claude/auth.json")" = 'keep credentials' ]
+backups=$(find "$HOME" -name '*.dotfiles-backup.*' -print | sort)
+sh "$repo/install.sh" > "$temporary/relocate-repeat"
+[ "$backups" = "$(find "$HOME" -name '*.dotfiles-backup.*' -print | sort)" ]
+
 export HOME="$temporary/xdg-home" XDG_CONFIG_HOME="$temporary/custom config"
 mkdir -p "$HOME"
 sh "$repo/install.sh" > "$temporary/xdg"
@@ -115,4 +132,4 @@ sh "$HOME/.config/install.sh" > "$temporary/same-location"
 
 if sh "$repo/install.sh" --unknown > /dev/null 2>&1; then exit 1; fi
 if sh "$repo/install.sh" --dry-run extra > /dev/null 2>&1; then exit 1; fi
-printf 'PASS: dry-run, links, backups, repeat install, shared edits, new files, XDG, parent checks, rollback, source protection\n'
+printf 'PASS: dry-run, links, backups, repeat install, shared edits, new files, repository relocation, XDG, parent checks, rollback, source protection\n'

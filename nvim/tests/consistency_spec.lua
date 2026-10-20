@@ -22,10 +22,12 @@ describe("treesitter parser list consistency", function()
   local lazy_path = config_dir .. "/lua/config/lazy.lua"
   local dockerfile_path = config_dir .. "/Dockerfile"
 
-  -- lazy.lua の ensure_installed リストを抽出
-  local lazy_parsers = extract_parsers(lazy_path, "ensure_installed%s*=%s*(%b{})")
-  -- Dockerfile の install({...}) からリストを抽出
+  -- lazy.lua / Dockerfile 双方の install({...}) からリストを抽出
+  local lazy_parsers = extract_parsers(lazy_path, "install%((%b{})%)")
   local docker_parsers = extract_parsers(dockerfile_path, "install%((%b{})%)")
+
+  -- moonbit は upstream registry 未登録で lazy.lua 側の手動登録が前提のため Docker 対象外
+  lazy_parsers["moonbit"] = nil
 
   it("lazy.lua parsers should all be in Dockerfile", function()
     local missing = {}

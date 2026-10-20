@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Personal Neovim configuration for macOS. Plugin management via Lazy.nvim, using Neovim 0.11+ built-in LSP features.
 
-The source configuration lives in `nvim/` in the dotfiles repository. Run `sh install.sh` from the repository root to link its files into the configuration directories. Editing through a link updates the source file. Rerun the installer after adding files; remove obsolete links separately.
+The source configuration lives in `~/ghq/github.com/sorafujitani/dotfiles/nvim/`. Run `sh install.sh` from the repository root to link its files into the configuration directories. Editing through a link updates the source file. Rerun the installer after adding files; remove obsolete links separately.
 
 ## Commands
 
@@ -28,6 +28,9 @@ The source configuration lives in `nvim/` in the dotfiles repository. Run `sh in
 
 # Measure startup time
 nvim --startuptime /tmp/startup.log && tail -30 /tmp/startup.log
+
+# Run test suite (busted + nlua; falls back to nix-shell)
+task test
 ```
 
 ## Architecture
@@ -39,7 +42,8 @@ init.lua                    # Entry point
 │   ├── options.lua         # vim.opt settings (leader=" ")
 │   ├── autocmds.lua        # Autocommands
 │   ├── commands.lua        # Custom commands (Sed, Cfp, Crp, Fmt, etc.)
-│   └── file-watch.lua      # libuv fs_event によるバッファ監視
+│   ├── file-watch.lua      # libuv fs_event によるバッファ監視
+│   └── markdown_list.lua   # Markdown list continuation on Enter
 ├── lua/keymaps/
 │   ├── init.lua            # Base keymaps + submodule loader
 │   ├── lsp.lua             # LSP keymaps ([d, ]d, gi, gt, <leader>a, etc.)
@@ -74,7 +78,7 @@ return {
 }
 ```
 
-Enabled servers: lua_ls, ts_ls, denols, biome, rust_analyzer, ruby_lsp, rfmt, gopls, ty, nil_ls
+Enabled servers: lua_ls, ts_ls, denols, biome, rust_analyzer, ruby_lsp, rfmt, gopls, zls, ty, nil_ls, moonbit, marksman
 
 **Note:** denols only starts when `deno.json` is present (via root_markers)
 
@@ -83,15 +87,16 @@ Enabled servers: lua_ls, ts_ls, denols, biome, rust_analyzer, ruby_lsp, rfmt, go
 Default is `lazy = true`; snacks loads on first `require("snacks")` (keymaps etc.).
 
 - **Immediate** (`lazy = false`): vim-orbital (colorscheme)
-- **VeryLazy**: lualine, flash, mini.surround, nerdfont
+- **VeryLazy**: lualine, flash, mini.surround, vim-yoink
 - **BufReadPost / BufNewFile**: treesitter (main branch, highlight/indent は FileType autocmd で起動), auto-save (okuuva/auto-save.nvim)
 - **BufReadPre**: gitsigns
 - **InsertEnter**: blink.cmp, mini.snippets, mini.pairs, copilot
-- **TextYankPost**: vim-yoink
 - **ft**: render-markdown (markdown), lazydev (lua), nvim-dap-go (go)
 - **Keys**: mini.comment (`gc`), Oil (`<S-e>`), flash (`s` / `S`)
-- **Commands**: Rg, Git/GitBlame, Neogit, Diffview, BlameToggle, Atac, RaySo, Fyler, ConformInfo, Neotest, MiniTest
+- **Commands**: Mdview (peek.nvim), Rg, Git/GitBlame, Neogit, Diffview, BlameToggle, Atac, RaySo, Fyler, ConformInfo, Neotest
 - DAP/Neotest are manually loaded via `:DapLoad` / `:NeotestLoad`
+
+Markdownはrender-markdown.nvimが編集バッファを読みやすく描画し、`:Mdview` はpeek.nvimでブラウザのライブプレビューを開閉する。両者は別経路として扱う。
 
 ## Key Bindings
 
@@ -129,6 +134,7 @@ Default is `lazy = true`; snacks loads on first `require("snacks")` (keymaps etc
 | `:Crp` | Copy relative path (with optional line number) |
 | `:Cfn` | Copy filename |
 | `:Fmt` | Format via conform.nvim |
+| `:Mdview` | Toggle Markdown live preview in the browser |
 | `:LspRestart [name]` | Restart LSP |
 | `:LspStop [name]` | Stop LSP |
 | `:NotePush` | Run git add/commit/push in one shot |

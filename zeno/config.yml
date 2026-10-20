@@ -256,6 +256,10 @@ snippets:
     keyword: aws_prod
     snippet: aws-vault exec platform-prod
 
+  - name: aws ad dev
+    keyword: ad_dev
+    snippet: aws-vault exec ad-dev
+
   - name: codex aws dev
     keyword: cx_aws_dev
     snippet: codex-aws-dev
@@ -263,6 +267,10 @@ snippets:
   - name: codex aws prod
     keyword: cx_aws_prod
     snippet: codex-aws-prod
+
+  - name: codex aws ad dev
+    keyword: cx_aws_ad_dev
+    snippet: codex-aws-ad-dev
 
   - name: aws reportdb dev
     keyword: aws_reportdb_dev

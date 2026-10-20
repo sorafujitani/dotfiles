@@ -299,7 +299,7 @@ local function setup_render_markdown_highlights()
 
 	-- 引用・リスト記号・区切り
 	vim.api.nvim_set_hl(0, "RenderMarkdownQuote", { fg = palette.muted, italic = true })
-	vim.api.nvim_set_hl(0, "RenderMarkdownBullet", { fg = palette.keyword })
+	vim.api.nvim_set_hl(0, "RenderMarkdownBullet", { fg = "#a8adb7" })
 	vim.api.nvim_set_hl(0, "RenderMarkdownDash", { fg = palette.muted })
 
 	-- チェックボックス

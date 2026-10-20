@@ -1,0 +1,59 @@
+{
+  "groups": {
+    "code-intelligence": {
+      "tools": [
+        "project_report",
+        "symbol_search",
+        "module_report",
+        "read_symbol",
+        "read_enclosing",
+        "lsp_diagnostics",
+        "lens_diagnostics",
+        "pi_lens_activate_tools"
+      ],
+      "patterns": []
+    },
+    "history": {
+      "tools": [
+        "git_ref_explorer"
+      ],
+      "patterns": []
+    },
+    "image": {
+      "tools": [
+        "image_gen"
+      ],
+      "patterns": []
+    },
+    "cloud": {
+      "tools": [
+        "cxcloud"
+      ],
+      "patterns": [
+        "\\bcxcloud\\b",
+        "Codex Cloud"
+      ]
+    },
+    "panopticon": {
+      "tools": [
+        "herdr_orchestrate"
+      ],
+      "patterns": [
+        "\\bpanopticon\\b",
+        "\\bherdr\\b"
+      ]
+    },
+    "delegation": {
+      "tools": [
+        "subagent"
+      ],
+      "patterns": []
+    },
+    "failure-learning": {
+      "tools": [
+        "record_failure_lesson"
+      ],
+      "patterns": []
+    }
+  }
+}
