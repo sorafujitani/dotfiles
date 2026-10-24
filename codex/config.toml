@@ -14,6 +14,10 @@ default_permissions = ":danger-full-access"
 web_search = "live"
 service_tier = "priority"
 
+# Ghostty maps Cmd+Enter to Ctrl+Enter; plain Enter keeps its newline behavior.
+[tui.keymap.composer]
+submit = ["ctrl-enter"]
+
 [sandbox_workspace_write]
 network_access = true
 
